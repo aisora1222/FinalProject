@@ -55,7 +55,6 @@ fun ReceiptCaptureScreen(
     var apiResponse by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
-    // Camera Launcher
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         bitmap?.let {
             val uri = saveBitmapToCache(context, it)
@@ -70,7 +69,6 @@ fun ReceiptCaptureScreen(
         }
     }
 
-    // Gallery Launcher
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             imageUri = it
@@ -92,7 +90,6 @@ fun ReceiptCaptureScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
-        // Button to launch camera
         Button(onClick = {
             isLoading = true
             cameraLauncher.launch(null)
@@ -102,7 +99,6 @@ fun ReceiptCaptureScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Button to select from gallery
         Button(onClick = {
             isLoading = true
             galleryLauncher.launch("image/*")
@@ -112,7 +108,6 @@ fun ReceiptCaptureScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Display the selected image
         imageUri?.let { uri ->
             Image(
                 painter = rememberAsyncImagePainter(uri),
@@ -125,7 +120,6 @@ fun ReceiptCaptureScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Show loading indicator or API response
         if (isLoading) {
             Text("Processing Receipt...", color = Color.Gray)
         } else {
@@ -156,7 +150,7 @@ private fun uploadToVeryfi(
         VeryfiApiClient.processDocumentWithVeryfi(
             imageFile = file,
             onSuccess = { response ->
-                println("Full JSON Response: $response") // Log the full response for debugging
+                println("Full JSON Response: $response") 
 
                 val gson = Gson()
                 val jsonResponse = gson.fromJson(response, Map::class.java)
@@ -170,7 +164,6 @@ private fun uploadToVeryfi(
                 val currencyCode = jsonResponse["currency_code"] as? String ?: "Unknown"
                 val lineItems = jsonResponse["line_items"] as? List<*> ?: emptyList<Any>()
 
-                // Process line items for detailed breakdown
                 val itemsDetails = lineItems.joinToString(separator = "\n") { item ->
                     val itemMap = item as? Map<*, *> ?: return@joinToString "Unknown item"
                     val description = itemMap["description"] as? String ?: "No description"
@@ -178,7 +171,6 @@ private fun uploadToVeryfi(
                     "$description: $$totalItem"
                 }
 
-                // Format the response
                 val formattedResponse = """
                     Vendor: $vendor
                     Date: $date
@@ -203,7 +195,6 @@ private fun uploadToVeryfi(
     }
 }
 
-// Helper function to create a temporary file from URI
 private fun createTempFileFromUri(uri: Uri, context: Context): File {
     val contentResolver = context.contentResolver
     val inputStream = contentResolver.openInputStream(uri)

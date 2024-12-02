@@ -61,22 +61,27 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.sp
 import co.yml.charts.common.model.PlotType
 import co.yml.charts.ui.piechart.charts.DonutPieChart
 import co.yml.charts.ui.piechart.charts.PieChart
 import co.yml.charts.ui.piechart.models.PieChartConfig
 import co.yml.charts.ui.piechart.models.PieChartData
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             FinalProjectTheme {
-                MainAppNav()
+                LoginScreen()
 //                Scaffold(
 //                    modifier = Modifier.fillMaxSize()
 //                ) { innerPadding ->
@@ -131,6 +136,8 @@ fun ReceiptCaptureScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
+        Spacer(modifier = Modifier.height(50.dp))
+
         Button(onClick = {
             isLoading = true
             cameraLauncher.launch(null)
@@ -351,44 +358,132 @@ fun BottomNavigationTab(label: String, navController: NavHostController, route: 
 
 @Composable
 fun NavigationGraph(navController: NavHostController) {
+    val auth = FirebaseAuth.getInstance()
+    var user by remember { mutableStateOf(auth.currentUser) }
+
     NavHost(navController, startDestination = "new") {
-        composable("main") { MainScreen() }
+        composable("main") { MainScreen(userEmail = user!!.email ?: "Unknown",
+            onSignOut = { user = null }) }
         composable("new") { NewScreen() }
         composable("settings") { SettingsScreen() }
     }
 }
 //Main Screen ---------------------------------------------------------------------------------
 @Composable
-fun MainScreen() {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        contentPadding = PaddingValues(vertical = 16.dp)
+fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
+    val firestore = FirebaseFirestore.getInstance()
+    var inputText by remember { mutableStateOf("") }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var dataList by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+    // Fetch data from Firestore collection
+    LaunchedEffect(Unit) {
+        if (userId != null) {
+            firestore.collection("users").document(userId).collection("userData")
+                .get()
+                .addOnSuccessListener { result ->
+                    dataList = result.documents.mapNotNull { it.getString("userInput") }
+                }
+                .addOnFailureListener { e ->
+                    statusMessage = "Error fetching data: ${e.localizedMessage}"
+                }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        item {
-            Text(
-                text = "Total Budget Breakdown",
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+        Text("Hello, $userEmail")
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = inputText,
+            onValueChange = { inputText = it },
+            label = { Text("Enter some data") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(onClick = {
+            if (userId != null) {
+                firestore.collection("users").document(userId).collection("userData")
+                    .add(mapOf("userInput" to inputText))
+                    .addOnSuccessListener {
+                        statusMessage = "Data submitted successfully!"
+                        // Refresh the data list after submission
+                        firestore.collection("users").document(userId).collection("userData")
+                            .get()
+                            .addOnSuccessListener { result ->
+                                dataList = result.documents.mapNotNull { it.getString("userInput") }
+                            }
+                    }
+                    .addOnFailureListener { e ->
+                        statusMessage = "Error submitting data: ${e.localizedMessage}"
+                    }
+            }
+        }) {
+            Text("Submit to Firestore")
         }
-        item {
-            BudgetTotalPieChart()
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Data from Firestore:")
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Display the data in a list
+        dataList.forEach { item ->
+            Text("- $item")
         }
-        item {
-            Text(
-                text = "Detailed Budget Breakdown",
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(onClick = {
+            FirebaseAuth.getInstance().signOut()
+            onSignOut() // Navigate back to the Sign-In screen
+        }) {
+            Text("Sign Out")
         }
-        item {
-            BudgetBreakdownDonutChart()
+
+        statusMessage?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(it, color = MaterialTheme.colorScheme.error)
         }
-        // Add more charts or components here
-        items(10) { index -> // Example: Adding multiple charts dynamically
-            ExampleChart(title = "Chart $index")
-        }
-        item {
-            Spacer(modifier = Modifier.height(32.dp))
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            item {
+                Text(
+                    text = "Total Budget Breakdown",
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            item {
+                BudgetTotalPieChart()
+            }
+            item {
+                Text(
+                    text = "Detailed Budget Breakdown",
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            item {
+                BudgetBreakdownDonutChart()
+            }
+            // Add more charts or components here
+            items(10) { index -> // Example: Adding multiple charts dynamically
+                ExampleChart(title = "Chart $index")
+            }
+            item {
+                Spacer(modifier = Modifier.height(32.dp))
+            }
         }
     }
 }
@@ -425,7 +520,7 @@ fun BudgetBreakdownDonutChart() {
     // Donut Chart Data
     val donutChartData = PieChartData(
         slices = listOf(
-            PieChartData.Slice("Housing", 1750f, Color(0xFF5F0A87)),
+            PieChartData.Slice("Housing", 1750F, Color(0xFF5F0A87)),
             PieChartData.Slice("Food", 1250f, Color(0xFF20BF55)),
             PieChartData.Slice("Transportation", 750f, Color(0xFFEC9F05)),
             PieChartData.Slice("Entertainment", 500f, Color(0xFFF53844)),
@@ -576,6 +671,184 @@ fun SettingItem(title: String, description: String) {
             Text(text = title,)
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = description,)
+        }
+    }
+}
+
+//Ethan's Code
+
+@Composable
+fun LoginScreen() {
+    val auth = FirebaseAuth.getInstance()
+    var user by remember { mutableStateOf(auth.currentUser) }
+
+    if (user == null) {
+        AuthScreen { user = auth.currentUser }
+    } else {
+        MainScreen(
+            userEmail = user!!.email ?: "Unknown",
+            onSignOut = { user = null }
+        )
+        /*
+        FirestoreTestScreen(
+            userEmail = user!!.email ?: "Unknown",
+            onSignOut = { user = null }
+        )
+
+         */
+    }
+}
+
+@Composable
+fun AuthScreen(onAuthComplete: () -> Unit) {
+    val auth = FirebaseAuth.getInstance()
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Sign in or Sign up with Firebase:")
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Sign In Button
+        Button(onClick = {
+            auth.signInWithEmailAndPassword(email, password)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        onAuthComplete()
+                    } else {
+                        errorMessage = task.exception?.localizedMessage
+                    }
+                }
+        }) {
+            Text("Sign In")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Sign Up Button
+        TextButton(onClick = {
+            auth.createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        onAuthComplete()
+                    } else {
+                        errorMessage = task.exception?.localizedMessage
+                    }
+                }
+        }) {
+            Text("Sign Up")
+        }
+
+        errorMessage?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Error: $it", color = MaterialTheme.colorScheme.error)
+        }
+    }
+}
+
+
+@Composable
+fun FirestoreTestScreen(userEmail: String, onSignOut: () -> Unit) {
+    val firestore = FirebaseFirestore.getInstance()
+    var inputText by remember { mutableStateOf("") }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var dataList by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    // Fetch data from Firestore collection
+    LaunchedEffect(Unit) {
+        firestore.collection("testCollection")
+            .get()
+            .addOnSuccessListener { result ->
+                dataList = result.documents.mapNotNull { it.getString("userInput") }
+            }
+            .addOnFailureListener { e ->
+                statusMessage = "Error fetching data: ${e.localizedMessage}"
+            }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Hello, $userEmail")
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = inputText,
+            onValueChange = { inputText = it },
+            label = { Text("Enter some data") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(onClick = {
+            firestore.collection("testCollection")
+                .add(mapOf("userInput" to inputText))
+                .addOnSuccessListener {
+                    statusMessage = "Data submitted successfully!"
+                    // Refresh the data list after submission
+                    firestore.collection("testCollection")
+                        .get()
+                        .addOnSuccessListener { result ->
+                            dataList = result.documents.mapNotNull { it.getString("userInput") }
+                        }
+                }
+                .addOnFailureListener { e ->
+                    statusMessage = "Error submitting data: ${e.localizedMessage}"
+                }
+        }) {
+            Text("Submit to Firestore")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Data from Firestore:")
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Display the data in a list
+        dataList.forEach { item ->
+            Text("- $item")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(onClick = {
+            FirebaseAuth.getInstance().signOut()
+            onSignOut() // Navigate back to the Sign-In screen
+        }) {
+            Text("Sign Out")
+        }
+
+        statusMessage?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(it, color = MaterialTheme.colorScheme.error)
         }
     }
 }

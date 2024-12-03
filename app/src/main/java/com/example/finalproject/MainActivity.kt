@@ -266,19 +266,18 @@ fun ReceiptCaptureScreenPreview() {
 //Brandons Code
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter", "UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun MainAppNav() {
+fun MainAppNav(userEmail: String, onSignOut: () -> Unit) {
     val navController = rememberNavController()
     var isExpanded by remember { mutableStateOf(false) }
-    // This 'name' mutable variable should come from the login OAuth for the user
-    var name by remember { mutableStateOf("Anonymous") }
+
 
     Scaffold(
         //User Greeting
-        topBar = { FixedTopBar(name) },
+        topBar = { FixedTopBar(userEmail) },
         //Bottom Navigation Bar (Main, New, Settings)
-        bottomBar = { ExpandableBottomNavigationBar(navController, isExpanded, onExpandToggle = { isExpanded = !isExpanded }) }
+        bottomBar = { ExpandableBottomNavigationBar(navController, isExpanded, onExpandToggle = { isExpanded = !isExpanded }, userEmail, onSignOut) }
     ) {
-        NavigationGraph(navController)
+        NavigationGraph(navController, userEmail, onSignOut)
     }
 }
 
@@ -286,7 +285,9 @@ fun MainAppNav() {
 fun ExpandableBottomNavigationBar(
     navController: NavHostController,
     isExpanded: Boolean,
-    onExpandToggle: () -> Unit
+    onExpandToggle: () -> Unit,
+    userEmail: String,
+    onSignOut: () -> Unit
 ) {
     Surface() {
         Column {
@@ -332,11 +333,11 @@ fun ExpandableBottomNavigationBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FixedTopBar(name: String) {
+fun FixedTopBar(userEmail: String) {
     Surface() {
         TopAppBar(
             title = { Text(
-                text = "Hello, $name",
+                text = "Hello, $userEmail",
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.Magenta)
@@ -357,13 +358,10 @@ fun BottomNavigationTab(label: String, navController: NavHostController, route: 
 }
 
 @Composable
-fun NavigationGraph(navController: NavHostController) {
-    val auth = FirebaseAuth.getInstance()
-    var user by remember { mutableStateOf(auth.currentUser) }
+fun NavigationGraph(navController: NavHostController, userEmail: String, onSignOut: () -> Unit) {
 
     NavHost(navController, startDestination = "new") {
-        composable("main") { MainScreen(userEmail = user!!.email ?: "Unknown",
-            onSignOut = { user = null }) }
+        composable("main") { MainScreen(userEmail, onSignOut) }
         composable("new") { NewScreen() }
         composable("settings") { SettingsScreen() }
     }
@@ -398,6 +396,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(modifier = Modifier.height(50.dp))
         Text("Hello, $userEmail")
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -685,7 +684,7 @@ fun LoginScreen() {
     if (user == null) {
         AuthScreen { user = auth.currentUser }
     } else {
-        MainScreen(
+        MainAppNav(
             userEmail = user!!.email ?: "Unknown",
             onSignOut = { user = null }
         )

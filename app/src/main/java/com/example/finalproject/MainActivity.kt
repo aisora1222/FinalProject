@@ -186,6 +186,25 @@ fun saveBitmapToCache(context: Context, bitmap: Bitmap): Uri {
     return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }
 
+
+fun saveRawJsonToFirestore(jsonString: String, ) {
+    val firestore = FirebaseFirestore.getInstance()
+    val documentData = mapOf("raw_json" to jsonString)
+
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+
+    if (userId != null) {
+        firestore.collection("users").document(userId).collection("userData")
+            .add(documentData)
+            .addOnSuccessListener { documentReference ->
+                println("Document saved with ID: ${documentReference.id}")
+            }
+            .addOnFailureListener { error ->
+                println("Failed to save document: $error")
+            }
+    }
+}
+
 private fun uploadToVeryfi(
     uri: Uri,
     context: Context,
@@ -198,6 +217,7 @@ private fun uploadToVeryfi(
         VeryfiApiClient.processDocumentWithVeryfi(
             imageFile = file,
             onSuccess = { response ->
+                saveRawJsonToFirestore(response)
                 println("Full JSON Response: $response") 
 
                 val gson = Gson()
@@ -354,7 +374,7 @@ fun BottomNavigationTab(label: String, navController: NavHostController, route: 
         modifier = Modifier
             .padding(16.dp)
             .clickable { navController.navigate(route) }
-        
+
     )
 }
 

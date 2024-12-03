@@ -357,17 +357,19 @@ fun ExpandableBottomNavigationBar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FixedTopBar(userEmail: String) {
-    Surface() {
-        TopAppBar(
-            title = { Text(
+    TopAppBar(
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = Color.Magenta // Custom background color
+        ),
+        modifier = Modifier.fillMaxWidth(),
+        title = {
+            Text(
                 text = "Hello, $userEmail",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Magenta)
-                    .padding(vertical = 8.dp),
-            ) }
-        )
-    }
+            )
+        },
+    )
 }
 
 @Composable

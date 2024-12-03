@@ -354,6 +354,7 @@ fun BottomNavigationTab(label: String, navController: NavHostController, route: 
         modifier = Modifier
             .padding(16.dp)
             .clickable { navController.navigate(route) }
+        
     )
 }
 

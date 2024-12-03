@@ -194,6 +194,8 @@ fun saveRawJsonToFirestore(jsonString: String, ) {
     val userId = FirebaseAuth.getInstance().currentUser?.uid
 
     if (userId != null) {
+        // Path that the data is being stored in
+        // (essentially the database schema, this will need to get updated once we introduce categories)
         firestore.collection("users").document(userId).collection("userData")
             .add(documentData)
             .addOnSuccessListener { documentReference ->
@@ -217,6 +219,7 @@ private fun uploadToVeryfi(
         VeryfiApiClient.processDocumentWithVeryfi(
             imageFile = file,
             onSuccess = { response ->
+                // calls the function to save the response if the response is successful
                 saveRawJsonToFirestore(response)
                 println("Full JSON Response: $response") 
 
@@ -382,6 +385,7 @@ fun BottomNavigationTab(label: String, navController: NavHostController, route: 
 fun NavigationGraph(navController: NavHostController, userEmail: String, onSignOut: () -> Unit) {
 
     NavHost(navController, startDestination = "new") {
+        // Ensures onSignOut is consistent on the Main screen, will add support for the other two soon
         composable("main") { MainScreen(userEmail, onSignOut) }
         composable("new") { NewScreen() }
         composable("settings") { SettingsScreen() }
@@ -791,6 +795,9 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
 }
 
 
+
+// Fairly useless, but keeping at the bottom as a point of reference for the other two screens.
+// This will be deleted by the time everything is finished
 @Composable
 fun FirestoreTestScreen(userEmail: String, onSignOut: () -> Unit) {
     val firestore = FirebaseFirestore.getInstance()

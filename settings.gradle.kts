@@ -14,11 +14,10 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        google()
-        mavenCentral()
+        google() // Required for AndroidX and Firebase
+        mavenCentral() // Required for other libraries like OkHttp, Gson, etc.
     }
 }
 
 rootProject.name = "FinalProject"
 include(":app")
- 

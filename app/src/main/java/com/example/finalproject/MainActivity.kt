@@ -1,80 +1,80 @@
 package com.example.finalproject
 
+// Core Android components
 import android.annotation.SuppressLint
+import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+
+// Compose foundation and layout
+import androidx.compose.animation.*
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
-import com.example.finalproject.ui.theme.FinalProjectTheme
-import android.content.Context
-import android.graphics.Bitmap
-import java.io.File
-import androidx.core.content.FileProvider
-import androidx.compose.ui.platform.LocalContext
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.clickable
-import com.example.finalproject.utils.VeryfiApiClient
-import com.google.gson.Gson
-
-import androidx.compose.animation.*
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.*
+
+
+// Material design
+import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.ArrowDropDown
+
+// Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+
+// Navigation
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.runtime.Composable
 
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.sp
+// Third-party libraries
+import coil.compose.rememberAsyncImagePainter
 import co.yml.charts.common.model.PlotType
 import co.yml.charts.ui.piechart.charts.DonutPieChart
 import co.yml.charts.ui.piechart.charts.PieChart
 import co.yml.charts.ui.piechart.models.PieChartConfig
 import co.yml.charts.ui.piechart.models.PieChartData
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.finalproject.ui.theme.FinalProjectTheme
+import com.example.finalproject.utils.VeryfiApiClient
+import com.google.gson.Gson
+
+// Kotlin coroutine
+import kotlinx.coroutines.delay
+import java.io.File
+
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -131,7 +131,7 @@ fun ReceiptCaptureScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(20.dp)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
@@ -145,7 +145,7 @@ fun ReceiptCaptureScreen(
             Text("Take Photo")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Button(onClick = {
             isLoading = true
@@ -154,7 +154,7 @@ fun ReceiptCaptureScreen(
             Text("Select from Gallery")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         imageUri?.let { uri ->
             Image(
@@ -162,11 +162,11 @@ fun ReceiptCaptureScreen(
                 contentDescription = "Selected Image",
                 modifier = Modifier
                     .size(200.dp)
-                    .background(Color.LightGray, RoundedCornerShape(8.dp))
+                    .background(Color.LightGray, RoundedCornerShape(10.dp))
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         if (isLoading) {
             Text("Processing Receipt...", color = Color.Gray)
@@ -219,40 +219,50 @@ private fun uploadToVeryfi(
         VeryfiApiClient.processDocumentWithVeryfi(
             imageFile = file,
             onSuccess = { response ->
-                // calls the function to save the response if the response is successful
-                saveRawJsonToFirestore(response)
-                println("Full JSON Response: $response") 
-
                 val gson = Gson()
                 val jsonResponse = gson.fromJson(response, Map::class.java)
 
-                val vendor = jsonResponse["bill_to"]?.let { (it as Map<*, *>)["name"] } as? String ?: "Unknown"
-                val date = jsonResponse["date"] as? String ?: "Unknown"
-                val total = jsonResponse["total"] as? Double ?: "Unknown"
-                val subtotal = jsonResponse["subtotal"] as? Double ?: "Unknown"
-                val tax = jsonResponse["tax"] as? Double ?: "Unknown"
+                // Extracting only the required fields
                 val category = jsonResponse["category"] as? String ?: "Unknown"
                 val currencyCode = jsonResponse["currency_code"] as? String ?: "Unknown"
-                val lineItems = jsonResponse["line_items"] as? List<*> ?: emptyList<Any>()
+                val date = jsonResponse["date"] as? String ?: "Unknown"
 
-                val itemsDetails = lineItems.joinToString(separator = "\n") { item ->
-                    val itemMap = item as? Map<*, *> ?: return@joinToString "Unknown item"
-                    val description = itemMap["description"] as? String ?: "No description"
-                    val totalItem = itemMap["total"] as? Double ?: "Unknown total"
-                    "$description: $$totalItem"
-                }
+                val lineItems = jsonResponse["line_items"] as? List<*>
+                val extractedItems = lineItems?.map { item ->
+                    val itemMap = item as? Map<*, *>
+                    val name = itemMap?.get("description") as? String ?: "No description"
+                    val price = itemMap?.get("total") as? Double ?: 0.0
+                    mapOf("name" to name, "price" to price)
+                } ?: emptyList()
 
+                val subtotal = extractedItems.sumOf { (it["price"] as Double?) ?: 0.0 }
+                val tax = jsonResponse["tax"] as? Double ?: 0.0
+                val total = jsonResponse["total"] as? Double ?: subtotal + tax
+
+                // Formatting the extracted data
+                val formattedData = mapOf(
+                    "category" to category,
+                    "currency_code" to currencyCode,
+                    "date" to date,
+                    "items" to extractedItems,
+                    "subtotal" to subtotal,
+                    "tax" to tax,
+                    "total" to total
+                )
+
+                // Push extracted data to Firebase
+                saveFormattedDataToFirebase(formattedData)
+
+                // Provide feedback to the UI
                 val formattedResponse = """
-                    Vendor: $vendor
-                    Date: $date
-                    Total: $$total
-                    Subtotal: $$subtotal
-                    Tax: $$tax
                     Category: $category
-                    Currency: $currencyCode
-                    
+                    Currency Code: $currencyCode
+                    Date: $date
                     Items:
-                    $itemsDetails
+                    ${extractedItems.joinToString("\n") { "- ${it["name"]}: $${it["price"]}" }}
+                    Subtotal: $${"%.2f".format(subtotal)}
+                    Tax: $${"%.2f".format(tax)}
+                    Total: $${"%.2f".format(total)}
                 """.trimIndent()
 
                 onResponse(formattedResponse)
@@ -265,6 +275,24 @@ private fun uploadToVeryfi(
         onError(e)
     }
 }
+private fun saveFormattedDataToFirebase(data: Map<String, Any>) {
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+
+    if (userId != null) {
+        firestore.collection("users").document(userId).collection("receipts")
+            .add(data)
+            .addOnSuccessListener { documentReference ->
+                println("Document saved with ID: ${documentReference.id}")
+            }
+            .addOnFailureListener { error ->
+                println("Failed to save document: $error")
+            }
+    } else {
+        println("User is not authenticated. Cannot save data.")
+    }
+}
+
 
 private fun createTempFileFromUri(uri: Uri, context: Context): File {
     val contentResolver = context.contentResolver
@@ -295,89 +323,71 @@ fun MainAppNav(userEmail: String, onSignOut: () -> Unit) {
 
 
     Scaffold(
-        //User Greeting
         topBar = { FixedTopBar(userEmail) },
-        //Bottom Navigation Bar (Main, New, Settings)
-        bottomBar = { ExpandableBottomNavigationBar(navController, isExpanded, onExpandToggle = { isExpanded = !isExpanded }, userEmail, onSignOut) }
+        bottomBar = {
+            ExpandableBottomNavigationBar(
+                navController = navController,
+                userEmail = userEmail,
+                onSignOut = onSignOut
+            )
+        }
     ) {
         NavigationGraph(navController, userEmail, onSignOut)
     }
 }
-
 @Composable
 fun ExpandableBottomNavigationBar(
     navController: NavHostController,
-    isExpanded: Boolean,
-    onExpandToggle: () -> Unit,
     userEmail: String,
     onSignOut: () -> Unit
 ) {
-    Surface() {
+    Surface {
         Column {
-            // Expand/Collapse Button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                    .background(Color.Magenta)
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onExpandToggle) {
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                        contentDescription = "Expand/Collapse"
-                    )
-                }
-            }
-
-            // Navigation Row Visibility
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically(animationSpec = tween(50)) + fadeIn(),
-                exit = shrinkVertically(animationSpec = tween(50)) + fadeOut()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Magenta)
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Navigation Tabs
-                    BottomNavigationTab("Main", navController, "main")
-                    BottomNavigationTab("New", navController, "new")
-                    BottomNavigationTab("Settings", navController, "settings")
-                }
+                // Navigation Tabs
+                BottomNavigationTab("Main", navController, "main")
+                BottomNavigationTab("New", navController, "new")
+                BottomNavigationTab("Settings", navController, "settings")
             }
         }
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FixedTopBar(userEmail: String) {
     TopAppBar(
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = Color.Magenta // Custom background color
-        ),
-        modifier = Modifier.fillMaxWidth(),
         title = {
             Text(
                 text = "Hello, $userEmail",
+                color = Color.White,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(vertical = 10.dp)
             )
         },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Magenta
+        ),
+        modifier = Modifier.fillMaxWidth()
     )
 }
+
 
 @Composable
 fun BottomNavigationTab(label: String, navController: NavHostController, route: String) {
     Text(
         text = label,
         modifier = Modifier
-            .padding(16.dp)
+            .padding(20.dp)
             .clickable { navController.navigate(route) }
 
     )
@@ -419,13 +429,13 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(20.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(50.dp))
         Text("Hello, $userEmail")
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         OutlinedTextField(
             value = inputText,
@@ -433,7 +443,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             label = { Text("Enter some data") },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Button(onClick = {
             if (userId != null) {
@@ -456,17 +466,17 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             Text("Submit to Firestore")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text("Data from Firestore:")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Display the data in a list
         dataList.forEach { item ->
             Text("- $item")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Button(onClick = {
             FirebaseAuth.getInstance().signOut()
@@ -476,19 +486,19 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
         }
 
         statusMessage?.let {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Text(it, color = MaterialTheme.colorScheme.error)
         }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            contentPadding = PaddingValues(vertical = 16.dp)
+            contentPadding = PaddingValues(vertical = 20.dp)
         ) {
             item {
                 Text(
                     text = "Total Budget Breakdown",
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier.padding(vertical = 10.dp)
                 )
             }
             item {
@@ -497,7 +507,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             item {
                 Text(
                     text = "Detailed Budget Breakdown",
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier.padding(vertical = 10.dp)
                 )
             }
             item {
@@ -519,12 +529,12 @@ fun ExampleChart(title: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = title,
-            modifier = Modifier.padding(bottom = 8.dp)
+            modifier = Modifier.padding(bottom = 10.dp)
         )
         // Replace with your chart component
         Box(
@@ -601,10 +611,10 @@ fun BudgetBreakdownDonutChart() {
 
             // Selected Slice Details
             selectedSlice?.let { slice ->
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = slice.label,
-                    fontSize = 16.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color.Gray
                 )
@@ -660,32 +670,469 @@ fun BudgetTotalPieChart() {
 }
 
 //New Screen ---------------------------------------------------------------------------------
-@Composable
+/*@Composable
 fun NewScreen() {
     //Here we should add the logic to add a new receipt to the database (picture or manual)
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("This is where the user will add new receipts!")
+        Text("This is where we are gonna add receipts")
         ReceiptCaptureScreen()
     }
 }
 
+ */
+
+@Composable
+fun NewScreen() {
+    var currentPage by remember { mutableStateOf(1) }
+    var offsetX by remember { mutableStateOf(0f) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            PageIndicator(currentPage)
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = {
+                                if (offsetX > 100) {
+                                    currentPage = (currentPage - 1).coerceAtLeast(0)
+                                } else if (offsetX < -100) {
+                                    currentPage = (currentPage + 1).coerceAtMost(2)
+                                }
+                                offsetX = 0f
+                            },
+                            onDrag = { _, dragAmount ->
+                                offsetX += dragAmount.x
+                            }
+
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                when (currentPage) {
+                    0 -> PhotoGalleryScreen()
+                    1 -> SwipeInstructionPage()
+                    2 -> ManualDataInputScreen()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PageIndicator(currentPage: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 20.dp)
+            .background(Color.White)
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        repeat(3) { index ->
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .padding(4.dp)
+                    .background(
+                        color = if (index == currentPage) Color.Magenta else Color.LightGray,
+                        shape = CircleShape
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+fun SwipeInstructionPage() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Swipe left for Camera/Gallery\nSwipe right for Manual Input",
+            textAlign = TextAlign.Center,
+            color = Color.Gray
+        )
+    }
+}
+@Composable
+fun AnimatedCheckmark(modifier: Modifier = Modifier) {
+    val checkmarkProgress = remember { Animatable(0f) }
+
+    val customEasing: (Float) -> Float = { fraction ->
+        fraction * fraction * (3 - 2 * fraction)
+    }
+
+    LaunchedEffect(Unit) {
+        checkmarkProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 1000, easing = customEasing)
+        )
+    }
+
+    Canvas(
+        modifier = modifier
+            .size(150.dp)
+            .background(Color.Green, shape = CircleShape)
+            .padding(20.dp)
+    ) {
+        val canvasWidth = size.width
+        val canvasHeight = size.height
+
+        drawCircle(
+            color = Color.Green,
+            radius = canvasWidth / 2
+        )
+
+        val progress = checkmarkProgress.value
+        if (progress > 0) {
+            val checkmarkPath = Path().apply {
+                moveTo(canvasWidth * 0.3f, canvasHeight * 0.55f)
+                lineTo(canvasWidth * 0.45f, canvasHeight * 0.7f)
+                lineTo(canvasWidth * 0.7f, canvasHeight * 0.4f)
+            }
+
+            val pathMeasure = PathMeasure()
+            pathMeasure.setPath(checkmarkPath, false)
+
+            val partialPath = Path()
+            pathMeasure.getSegment(
+                0f,
+                pathMeasure.length * progress,
+                partialPath,
+                true
+            )
+
+            drawPath(
+                path = partialPath,
+                color = Color.White,
+                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+            )
+        }
+    }
+}
+
+@Composable
+fun PhotoGalleryScreen() {
+    val context = LocalContext.current
+    var isUploadComplete by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        bitmap?.let {
+            val uri = saveBitmapToCache(context, it)
+            isLoading = true
+            uploadToVeryfi(uri, context, onResponse = {
+                isLoading = false
+                isUploadComplete = true
+            }, onError = {
+                isLoading = false
+            })
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let {
+            isLoading = true
+            uploadToVeryfi(it, context, onResponse = {
+                isLoading = false
+                isUploadComplete = true
+            }, onError = {
+                isLoading = false
+            })
+        }
+    }
+
+    LaunchedEffect(isUploadComplete) {
+        if (isUploadComplete) {
+            kotlinx.coroutines.delay(3000)
+            isUploadComplete = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator()
+        } else if (isUploadComplete) {
+            AnimatedCheckmark()
+        } else {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Button(onClick = {
+                    cameraLauncher.launch(null)
+                }) {
+                    Text("Take Photo")
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(onClick = {
+                    galleryLauncher.launch("image/*")
+                }) {
+                    Text("Select from Gallery")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SimpleDropdownMenu(
+    items: List<String>,
+    selectedItem: String,
+    onItemSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .wrapContentSize()
+            .border(1.dp, Color.Gray, shape = RoundedCornerShape(4.dp))
+            .clickable { expanded = !expanded }
+            .padding(10.dp)
+    ) {
+
+        Text(
+            text = selectedItem,
+            color = Color.Black
+        )
+
+        if (expanded) {
+            Column(
+                modifier = Modifier
+                    .background(Color.White)
+                    .border(1.dp, Color.Gray)
+            ) {
+                items.forEach { item ->
+                    Text(
+                        text = item,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onItemSelected(item)
+                                expanded = false
+                            }
+                            .padding(10.dp),
+                        color = Color.Black
+                    )
+                }
+            }
+        }
+    }
+}
+@Composable
+fun ManualDataInputScreen() {
+    val categories = listOf(
+        "Advertising & Marketing", "Automotive", "Bank Charges & Fees",
+        "Legal & Professional Services", "Insurance", "Meals & Entertainment",
+        "Office Supplies & Software", "Taxes & Licenses", "Travel",
+        "Rent & Lease", "Repairs & Maintenance", "Payroll", "Utilities",
+        "Job Supplies", "Grocery"
+    )
+
+    var selectedCategory by remember { mutableStateOf("Select a Category") }
+    var date by remember { mutableStateOf("") }
+    val items = remember { mutableStateListOf(Pair("", "")) }
+    var tax by remember { mutableStateOf("") }
+    var total by remember { mutableStateOf(0.0) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var showSuccessAnimation by remember { mutableStateOf(false) }
+
+    LaunchedEffect(items, tax) {
+        val itemPrices = items.mapNotNull { it.second.toDoubleOrNull() }.sum()
+        val taxAmount = tax.toDoubleOrNull() ?: 0.0
+        total = itemPrices + taxAmount
+    }
+
+    if (showSuccessAnimation) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            AnimatedCheckmark() // Display green check animation
+        }
+        // Trigger state reset after 3 seconds using LaunchedEffect
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(3000)
+            showSuccessAnimation = false
+        }
+    } else {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            bottomBar = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Magenta)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Main | New | Settings", color = Color.White, fontSize = 16.sp)
+                }
+            }
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.Start
+            ) {
+                // Category Input
+                Text("Select a Category:")
+                SimpleDropdownMenu(
+                    items = categories,
+                    selectedItem = selectedCategory,
+                    onItemSelected = { selectedCategory = it }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Date Input
+                Text("Enter Date (YYYY-MM-DD):")
+                OutlinedTextField(
+                    value = date,
+                    onValueChange = { date = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Date") }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Items Input
+                Text("Enter Items:")
+                items.forEachIndexed { index, (name, price) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { updatedName ->
+                                items[index] = updatedName to price
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("Item Name") }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = price,
+                            onValueChange = { updatedPrice ->
+                                items[index] = name to updatedPrice
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("Price") }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(onClick = { items.removeAt(index) }) {
+                            Text("Remove")
+                        }
+                    }
+                }
+                Button(
+                    onClick = { items.add("" to "") },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Add Item")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Tax Input
+                Text("Tax:")
+                OutlinedTextField(
+                    value = tax,
+                    onValueChange = { tax = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Tax") }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("Total: $${"%.2f".format(total)}")
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Submit Button
+                Button(
+                    onClick = {
+                        isSubmitting = true
+                        val data = mapOf(
+                            "category" to selectedCategory,
+                            "date" to date,
+                            "items" to items.map { mapOf("name" to it.first, "price" to it.second) },
+                            "tax" to tax,
+                            "total" to total.toString()
+                        )
+                        saveFormattedDataToFirebase(data)
+                        isSubmitting = false
+                        showSuccessAnimation = true // Trigger success animation
+                    },
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(8.dp)
+                        .width(150.dp)
+                ) {
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Submit")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+
 //Settings Screen ---------------------------------------------------------------------------------
+data class Setting(val title: String, val description: String)
+
 @Composable
 fun SettingsScreen() {
     // Generate 100 fake settings
     val settingsList = List(100) { index ->
-        "Setting ${index + 1}" to "Description for Setting ${index + 1}"
+        Setting(title = "Setting ${index + 1}", description = "Description for Setting ${index + 1}")
     }
+
+
 
     // LazyColumn to display settings
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(settingsList) { setting ->
-            SettingItem(title = setting.first, description = setting.second)
+            SettingItem(title = setting.title, description = setting.description)
         }
     }
+
 }
 
 @Composable
@@ -693,13 +1140,16 @@ fun SettingItem(title: String, description: String) {
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = title,)
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = description,)
+            Text(text = description, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
+
+
+
 
 //Ethan's Code
 
@@ -735,12 +1185,12 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(20.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Sign in or Sign up with Firebase:")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         OutlinedTextField(
             value = email,
@@ -748,7 +1198,7 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
             label = { Text("Email") },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         OutlinedTextField(
             value = password,
@@ -757,7 +1207,7 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             visualTransformation = PasswordVisualTransformation()
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Sign In Button
         Button(onClick = {
@@ -773,7 +1223,7 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
             Text("Sign In")
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Sign Up Button
         TextButton(onClick = {
@@ -790,7 +1240,7 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
         }
 
         errorMessage?.let {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Text("Error: $it", color = MaterialTheme.colorScheme.error)
         }
     }
@@ -822,12 +1272,12 @@ fun FirestoreTestScreen(userEmail: String, onSignOut: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(20.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Hello, $userEmail")
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         OutlinedTextField(
             value = inputText,
@@ -835,7 +1285,7 @@ fun FirestoreTestScreen(userEmail: String, onSignOut: () -> Unit) {
             label = { Text("Enter some data") },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Button(onClick = {
             firestore.collection("testCollection")
@@ -856,17 +1306,17 @@ fun FirestoreTestScreen(userEmail: String, onSignOut: () -> Unit) {
             Text("Submit to Firestore")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text("Data from Firestore:")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Display the data in a list
         dataList.forEach { item ->
             Text("- $item")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Button(onClick = {
             FirebaseAuth.getInstance().signOut()
@@ -876,7 +1326,7 @@ fun FirestoreTestScreen(userEmail: String, onSignOut: () -> Unit) {
         }
 
         statusMessage?.let {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Text(it, color = MaterialTheme.colorScheme.error)
         }
     }

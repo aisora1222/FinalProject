@@ -664,7 +664,7 @@ fun BudgetTotalPieChart() {
 fun NewScreen() {
     //Here we should add the logic to add a new receipt to the database (picture or manual)
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("This is where we are gonna add receipts")
+        Text("This is where the user will add new receipts!")
         ReceiptCaptureScreen()
     }
 }

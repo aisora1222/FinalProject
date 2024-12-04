@@ -480,7 +480,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
 
         Button(onClick = {
             FirebaseAuth.getInstance().signOut()
-            onSignOut() // Navigate back to the Sign-In screen
+            onSignOut() 
         }) {
             Text("Sign Out")
         }
@@ -513,8 +513,8 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             item {
                 BudgetBreakdownDonutChart()
             }
-            // Add more charts or components here
-            items(10) { index -> // Example: Adding multiple charts dynamically
+            
+            items(10) { index -> 
                 ExampleChart(title = "Chart $index")
             }
             item {
@@ -963,7 +963,7 @@ fun ManualDataInputScreen() {
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            AnimatedCheckmark() // Display green check animation
+            AnimatedCheckmark() 
         }
         // Trigger state reset after 3 seconds using LaunchedEffect
         LaunchedEffect(Unit) {

@@ -385,11 +385,10 @@ fun FixedTopBar(userEmail: String) {
 @Composable
 fun BottomNavigationTab(label: String, navController: NavHostController, route: String) {
     Text(
-        text = label,
+        text = label, // Fixed missing text
         modifier = Modifier
             .padding(20.dp)
-            .clickable { navController.navigate(route) }
-
+            .clickable { navController.navigate(route) } // Fixed clickable
     )
 }
 
@@ -406,119 +405,79 @@ fun NavigationGraph(navController: NavHostController, userEmail: String, onSignO
 //Main Screen ---------------------------------------------------------------------------------
 @Composable
 fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
-    val firestore = FirebaseFirestore.getInstance()
-    var inputText by remember { mutableStateOf("") }
-    var statusMessage by remember { mutableStateOf<String?>(null) }
-    var dataList by remember { mutableStateOf<List<String>>(emptyList()) }
-
-    val userId = FirebaseAuth.getInstance().currentUser?.uid
-    // Fetch data from Firestore collection
-    LaunchedEffect(Unit) {
-        if (userId != null) {
-            firestore.collection("users").document(userId).collection("userData")
-                .get()
-                .addOnSuccessListener { result ->
-                    dataList = result.documents.mapNotNull { it.getString("userInput") }
-                }
-                .addOnFailureListener { e ->
-                    statusMessage = "Error fetching data: ${e.localizedMessage}"
-                }
-        }
-    }
+    val categories = listOf("Housing", "Food", "Transportation", "Entertainment")
+    var selectedCategory by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(20.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.Start
     ) {
-        Spacer(modifier = Modifier.height(50.dp))
-        Text("Hello, $userEmail")
+        Text("Hello, $userEmail", fontWeight = FontWeight.Bold)
+
         Spacer(modifier = Modifier.height(20.dp))
 
-        OutlinedTextField(
-            value = inputText,
-            onValueChange = { inputText = it },
-            label = { Text("Enter some data") },
-            modifier = Modifier.fillMaxWidth()
+        Text("Select a Spending Category:")
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        CategorySelectionDropdown(
+            categories = categories,
+            selectedCategory = selectedCategory,
+            onCategorySelected = { selectedCategory = it } // Update selected category
         )
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Button(onClick = {
-            if (userId != null) {
-                firestore.collection("users").document(userId).collection("userData")
-                    .add(mapOf("userInput" to inputText))
-                    .addOnSuccessListener {
-                        statusMessage = "Data submitted successfully!"
-                        // Refresh the data list after submission
-                        firestore.collection("users").document(userId).collection("userData")
-                            .get()
-                            .addOnSuccessListener { result ->
-                                dataList = result.documents.mapNotNull { it.getString("userInput") }
-                            }
-                    }
-                    .addOnFailureListener { e ->
-                        statusMessage = "Error submitting data: ${e.localizedMessage}"
-                    }
-            }
-        }) {
-            Text("Submit to Firestore")
-        }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Text("Data from Firestore:")
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Display the data in a list
-        dataList.forEach { item ->
-            Text("- $item")
+        if (selectedCategory.isNotEmpty()) {
+            Text("You selected: $selectedCategory", fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
         Button(onClick = {
             FirebaseAuth.getInstance().signOut()
-            onSignOut() // Navigate back to the Sign-In screen
+            onSignOut()
         }) {
             Text("Sign Out")
         }
+    }
+}
 
-        statusMessage?.let {
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(it, color = MaterialTheme.colorScheme.error)
-        }
+@Composable
+fun CategorySelectionDropdown(
+    categories: List<String>,
+    selectedCategory: String,
+    onCategorySelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            contentPadding = PaddingValues(vertical = 20.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.Gray, shape = RoundedCornerShape(8.dp))
+            .clickable { expanded = !expanded }
+            .padding(16.dp)
+    ) {
+        // Show selected category or default prompt
+        Text(
+            text = selectedCategory.ifEmpty { "Select a Category" },
+            color = Color.Black
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
         ) {
-            item {
-                Text(
-                    text = "Total Budget Breakdown",
-                    modifier = Modifier.padding(vertical = 10.dp)
+            categories.forEach { category ->
+                DropdownMenuItem(
+                    text = { Text(text = category) }, // Wrap `Text` in a lambda for `text` parameter
+                    onClick = {
+                        onCategorySelected(category) // Invoke callback with selected category
+                        expanded = false // Close dropdown
+                    }
                 )
-            }
-            item {
-                BudgetTotalPieChart()
-            }
-            item {
-                Text(
-                    text = "Detailed Budget Breakdown",
-                    modifier = Modifier.padding(vertical = 10.dp)
-                )
-            }
-            item {
-                BudgetBreakdownDonutChart()
-            }
-            // Add more charts or components here
-            items(10) { index -> // Example: Adding multiple charts dynamically
-                ExampleChart(title = "Chart $index")
-            }
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
@@ -889,7 +848,6 @@ fun PhotoGalleryScreen() {
         }
     }
 }
-
 @Composable
 fun SimpleDropdownMenu(
     items: List<String>,
@@ -898,42 +856,37 @@ fun SimpleDropdownMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    Column(
+    Box(
         modifier = Modifier
             .wrapContentSize()
             .border(1.dp, Color.Gray, shape = RoundedCornerShape(4.dp))
-            .clickable { expanded = !expanded }
+            .clickable { expanded = !expanded } // Fixed clickable
             .padding(10.dp)
     ) {
-
+        // Display the currently selected item or default placeholder
         Text(
-            text = selectedItem,
+            text = selectedItem.ifEmpty { "Select an Option" }, // Handle empty selected item
             color = Color.Black
         )
 
-        if (expanded) {
-            Column(
-                modifier = Modifier
-                    .background(Color.White)
-                    .border(1.dp, Color.Gray)
-            ) {
-                items.forEach { item ->
-                    Text(
-                        text = item,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onItemSelected(item)
-                                expanded = false
-                            }
-                            .padding(10.dp),
-                        color = Color.Black
-                    )
-                }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            items.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(text = item) }, // Wrap the `Text` in a lambda
+                    onClick = {
+                        onItemSelected(item) // Invoke callback with selected item
+                        expanded = false // Close dropdown
+                    }
+                )
             }
         }
     }
 }
+
+
 @Composable
 fun ManualDataInputScreen() {
     val categories = listOf(

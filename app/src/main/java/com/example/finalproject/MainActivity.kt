@@ -977,17 +977,7 @@ fun ManualDataInputScreen() {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Magenta)
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Main | New | Settings", color = Color.White, fontSize = 16.sp)
-            }
-        }
+
     ) { innerPadding ->
         Column(
             modifier = Modifier

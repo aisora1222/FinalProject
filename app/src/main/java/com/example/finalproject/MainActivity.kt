@@ -69,6 +69,10 @@ import co.yml.charts.ui.piechart.models.PieChartData
 import com.example.finalproject.ui.theme.FinalProjectTheme
 import com.example.finalproject.utils.VeryfiApiClient
 import com.google.gson.Gson
+import android.app.DatePickerDialog
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 // Kotlin coroutine
 import kotlinx.coroutines.delay
@@ -886,7 +890,6 @@ fun SimpleDropdownMenu(
     }
 }
 
-
 @Composable
 fun ManualDataInputScreen() {
     val categories = listOf(
@@ -898,164 +901,176 @@ fun ManualDataInputScreen() {
     )
 
     var selectedCategory by remember { mutableStateOf("Select a Category") }
-    var date by remember { mutableStateOf("") }
     val items = remember { mutableStateListOf(Pair("", "")) }
     var tax by remember { mutableStateOf("") }
     var total by remember { mutableStateOf(0.0) }
     var isSubmitting by remember { mutableStateOf(false) }
     var showSuccessAnimation by remember { mutableStateOf(false) }
 
+    // Date Picker State
+    val calendar = Calendar.getInstance()
+    var selectedDate by remember { mutableStateOf("Select a Date") }
+    val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+    // Context for DatePickerDialog
+    val context = LocalContext.current
+
+    // DatePickerDialog Trigger
+    var showDialog by remember { mutableStateOf(false) }
+    if (showDialog) {
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                calendar.set(year, month, dayOfMonth)
+                selectedDate = dateFormatter.format(calendar.time)
+                showDialog = false
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
+    // Update Total Calculation
     LaunchedEffect(items, tax) {
         val itemPrices = items.mapNotNull { it.second.toDoubleOrNull() }.sum()
         val taxAmount = tax.toDoubleOrNull() ?: 0.0
         total = itemPrices + taxAmount
     }
 
-    if (showSuccessAnimation) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Magenta)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Main | New | Settings", color = Color.White, fontSize = 16.sp)
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.Start
         ) {
-            AnimatedCheckmark() // Display green check animation
-        }
-        // Trigger state reset after 3 seconds using LaunchedEffect
-        LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(3000)
-            showSuccessAnimation = false
-        }
-    } else {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            bottomBar = {
-                Box(
+            // Category Dropdown
+            Text("Select a Category:")
+            SimpleDropdownMenu(
+                items = categories,
+                selectedItem = selectedCategory,
+                onItemSelected = { selectedCategory = it }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Date Picker
+            Text("Select Date:")
+            OutlinedTextField(
+                value = selectedDate,
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDialog = true }, // Open DatePickerDialog
+                label = { Text("Date (YYYY-MM-DD)") }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Items Input
+            Text("Enter Items:")
+            items.forEachIndexed { index, (name, price) ->
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Magenta)
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Main | New | Settings", color = Color.White, fontSize = 16.sp)
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { updatedName ->
+                            items[index] = updatedName to price
+                        },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("Item Name") }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = price,
+                        onValueChange = { updatedPrice ->
+                            items[index] = name to updatedPrice
+                        },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("Price") }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = { items.removeAt(index) }) {
+                        Text("Remove")
+                    }
                 }
             }
-        ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.Start
+            Button(
+                onClick = { items.add("" to "") },
+                modifier = Modifier.align(Alignment.End)
             ) {
-                // Category Input
-                Text("Select a Category:")
-                SimpleDropdownMenu(
-                    items = categories,
-                    selectedItem = selectedCategory,
-                    onItemSelected = { selectedCategory = it }
-                )
+                Text("Add Item")
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                // Date Input
-                Text("Enter Date (YYYY-MM-DD):")
-                OutlinedTextField(
-                    value = date,
-                    onValueChange = { date = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Date") }
-                )
+            // Tax Input
+            Text("Tax:")
+            OutlinedTextField(
+                value = tax,
+                onValueChange = { tax = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Tax") }
+            )
 
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                // Items Input
-                Text("Enter Items:")
-                items.forEachIndexed { index, (name, price) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { updatedName ->
-                                items[index] = updatedName to price
-                            },
-                            modifier = Modifier.weight(1f),
-                            label = { Text("Item Name") }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        OutlinedTextField(
-                            value = price,
-                            onValueChange = { updatedPrice ->
-                                items[index] = name to updatedPrice
-                            },
-                            modifier = Modifier.weight(1f),
-                            label = { Text("Price") }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = { items.removeAt(index) }) {
-                            Text("Remove")
-                        }
-                    }
+            // Total
+            Text("Total: $${"%.2f".format(total)}")
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Submit Button
+            Button(
+                onClick = {
+                    isSubmitting = true
+                    val data = mapOf(
+                        "category" to selectedCategory,
+                        "date" to selectedDate,
+                        "items" to items.map { mapOf("name" to it.first, "price" to it.second) },
+                        "tax" to tax,
+                        "total" to total.toString()
+                    )
+                    saveFormattedDataToFirebase(data)
+                    isSubmitting = false
+                    showSuccessAnimation = true
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(8.dp)
+                    .width(150.dp)
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Submit")
                 }
-                Button(
-                    onClick = { items.add("" to "") },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Add Item")
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Tax Input
-                Text("Tax:")
-                OutlinedTextField(
-                    value = tax,
-                    onValueChange = { tax = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Tax") }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text("Total: $${"%.2f".format(total)}")
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Submit Button
-                Button(
-                    onClick = {
-                        isSubmitting = true
-                        val data = mapOf(
-                            "category" to selectedCategory,
-                            "date" to date,
-                            "items" to items.map { mapOf("name" to it.first, "price" to it.second) },
-                            "tax" to tax,
-                            "total" to total.toString()
-                        )
-                        saveFormattedDataToFirebase(data)
-                        isSubmitting = false
-                        showSuccessAnimation = true // Trigger success animation
-                    },
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(8.dp)
-                        .width(150.dp)
-                ) {
-                    if (isSubmitting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text("Submit")
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }

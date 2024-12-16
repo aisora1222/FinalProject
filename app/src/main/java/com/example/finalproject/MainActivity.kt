@@ -70,6 +70,8 @@ import com.example.finalproject.ui.theme.FinalProjectTheme
 import com.example.finalproject.utils.VeryfiApiClient
 import com.google.gson.Gson
 import android.app.DatePickerDialog
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -323,27 +325,35 @@ fun ReceiptCaptureScreenPreview() {
 @Composable
 fun MainAppNav(userEmail: String, onSignOut: () -> Unit) {
     val navController = rememberNavController()
-    var isExpanded by remember { mutableStateOf(false) }
-
+    var isExpanded by remember { mutableStateOf(true) } // Track bottom bar state
 
     Scaffold(
         topBar = { FixedTopBar(userEmail) },
         bottomBar = {
-            ExpandableBottomNavigationBar(
-                navController = navController,
-                userEmail = userEmail,
-                onSignOut = onSignOut
-            )
+            if (isExpanded) {
+                ExpandableBottomNavigationBar(
+                    navController = navController,
+                    onMinimize = { isExpanded = false }
+                )
+            } else {
+                ExpandButton(onExpand = { isExpanded = true })
+            }
         }
-    ) {
-        NavigationGraph(navController, userEmail, onSignOut)
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier.padding(
+                bottom = if (isExpanded) innerPadding.calculateBottomPadding() else 0.dp
+            )
+        ) {
+            NavigationGraph(navController, userEmail, onSignOut)
+        }
     }
 }
+
 @Composable
 fun ExpandableBottomNavigationBar(
     navController: NavHostController,
-    userEmail: String,
-    onSignOut: () -> Unit
+    onMinimize: () -> Unit
 ) {
     Surface {
         Column {
@@ -359,8 +369,37 @@ fun ExpandableBottomNavigationBar(
                 BottomNavigationTab("Main", navController, "main")
                 BottomNavigationTab("New", navController, "new")
                 BottomNavigationTab("Settings", navController, "settings")
+
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Minimize",
+                    tint = Color.Green,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clickable { onMinimize() }
+                )
             }
         }
+    }
+}
+
+@Composable
+fun ExpandButton(onExpand: () -> Unit) {
+    // Show a small button in the bottom-right corner to expand
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(10.dp),
+        horizontalArrangement = Arrangement.End
+    ) {
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowUp,
+            contentDescription = "Expand",
+            tint = Color.Green,
+            modifier = Modifier
+                .size(36.dp)
+                .clickable { onExpand() }
+        )
     }
 }
 
@@ -389,18 +428,16 @@ fun FixedTopBar(userEmail: String) {
 @Composable
 fun BottomNavigationTab(label: String, navController: NavHostController, route: String) {
     Text(
-        text = label, // Fixed missing text
+        text = label,
         modifier = Modifier
             .padding(20.dp)
-            .clickable { navController.navigate(route) } // Fixed clickable
+            .clickable { navController.navigate(route) }
     )
 }
 
 @Composable
 fun NavigationGraph(navController: NavHostController, userEmail: String, onSignOut: () -> Unit) {
-
     NavHost(navController, startDestination = "new") {
-        // Ensures onSignOut is consistent on the Main screen, will add support for the other two soon
         composable("main") { MainScreen(userEmail, onSignOut) }
         composable("new") { NewScreen() }
         composable("settings") { SettingsScreen() }

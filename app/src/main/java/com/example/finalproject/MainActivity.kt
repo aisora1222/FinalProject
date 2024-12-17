@@ -65,6 +65,7 @@ import com.example.finalproject.ui.theme.FinalProjectTheme
 import com.example.finalproject.utils.VeryfiApiClient
 import com.google.gson.Gson
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -87,7 +88,7 @@ import java.io.File
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        enableEdgeToEdge()
         // Set the content view using Jetpack Compose
         setContent {
             FinalProjectTheme {
@@ -940,7 +941,8 @@ fun BudgetPieChart(slices: List<PieChartData.Slice>) {
     val pieChartConfig = PieChartConfig(
         showSliceLabels = false,    // Disables labels on the pie chart slices
         isAnimationEnable = true,   // Enables animation for slice appearance
-        activeSliceAlpha = 0.8f     // Sets transparency for active slices
+        activeSliceAlpha = 0.8f, // Sets transparency for active slices
+        backgroundColor = Color.Transparent
     )
 
     // Row: Contains the pie chart on the left and the legend on the right
@@ -1806,40 +1808,45 @@ fun SettingsScreen(
     Scaffold(
         topBar = { FixedTopBar(userEmail) } // Displays the user's email in the top bar
     ) { innerPadding ->
-        // LazyColumn: A vertically scrollable list with items spaced evenly
-        LazyColumn(
-            contentPadding = innerPadding, // Adds padding to prevent overlapping with the top bar
-            modifier = Modifier
-                .fillMaxSize()             // Makes the list take up the entire screen
-                .padding(horizontal = 20.dp), // Adds horizontal padding for aesthetics
-            verticalArrangement = Arrangement.spacedBy(10.dp) // Spacing between items
-        ) {
-            // Display user information
-            item {
-                UserInformationCard(userEmail)
-            }
-            // Display the budget selection card
-            item {
-                BudgetSelectionCard(
-                    budget = budget, // Current budget
-                    onBudgetChange = { newBudget -> budget = newBudget }, // Updates budget state
-                    onSave = {
-                        // Save the budget to Firebase and show success message if successful
-                        saveBudgetToFirebase(budget) { success ->
-                            if (success) showSaveSuccess = true
+        Column() {
+            Spacer(modifier = Modifier.height(10.dp))
+            // LazyColumn: A vertically scrollable list with items spaced evenly
+            LazyColumn(
+                contentPadding = innerPadding, // Adds padding to prevent overlapping with the top bar
+                modifier = Modifier
+                    .fillMaxSize()             // Makes the list take up the entire screen
+                    .padding(horizontal = 20.dp), // Adds horizontal padding for aesthetics
+                verticalArrangement = Arrangement.spacedBy(10.dp) // Spacing between items
+            ) {
+                // Display user information
+                item {
+                    UserInformationCard(userEmail)
+                }
+                // Display the budget selection card
+                item {
+                    BudgetSelectionCard(
+                        budget = budget, // Current budget
+                        onBudgetChange = { newBudget -> budget = newBudget }, // Updates budget state
+                        onSave = {
+                            // Save the budget to Firebase and show success message if successful
+                            saveBudgetToFirebase(budget) { success ->
+                                if (success) showSaveSuccess = true
+                            }
                         }
-                    }
-                )
-            }
-            // Placeholder for theme settings card
-            item {
-                ThemeSettingsCard()
-            }
-            // Display logout card
-            item {
-                LogoutCard(onSignOut) // Trigger sign-out when pressed
+                    )
+                }
+                // Placeholder for theme settings card
+                item {
+                    ThemeSettingsCard()
+                }
+                // Display logout card
+                item {
+                    LogoutCard(onSignOut) // Trigger sign-out when pressed
+                }
             }
         }
+
+
 
         // Show a success toast message after saving the budget
         if (showSaveSuccess) {

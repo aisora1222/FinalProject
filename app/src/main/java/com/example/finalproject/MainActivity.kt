@@ -942,7 +942,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                                 Text(startDate.ifEmpty { "Not set" })
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Button(onClick = { showDatePicker { startDate = it } }) {
-                                    Text("Pick Start Date")
+                                    Text("Pick Start Date", color = MaterialTheme.colorScheme.background)
                                 }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -950,7 +950,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                                 Text(endDate.ifEmpty { "Not set" })
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Button(onClick = { showDatePicker { endDate = it } }) {
-                                    Text("Pick End Date")
+                                    Text("Pick End Date", color = MaterialTheme.colorScheme.background)
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -960,7 +960,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
                             ) {
-                                Text("Apply Filters", color = Color.White)
+                                Text("Apply Filters", color = MaterialTheme.colorScheme.background)
                             }
                         }
                     }

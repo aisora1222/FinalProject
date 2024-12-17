@@ -2437,36 +2437,57 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
     var password by remember { mutableStateOf("") }             // Stores the password input
     var errorMessage by remember { mutableStateOf<String?>(null) } // Holds an error message when sign-in fails
 
+    val textColor = Color(0xFF000000) // Black text
+    val buttonColor = Color(0xFF414e5e) // Blue button color
+
+    val buttonModifier = Modifier
+        .fillMaxWidth() // Makes the buttons take up the full width
+        .height(48.dp) // Ensures consistent height for both buttons
+
     // Main layout: Column to arrange components vertically
     Column(
         modifier = Modifier
             .fillMaxSize()                                     // Makes the column take up the full screen
-            .padding(20.dp),                                   // Adds padding around the content
+            .padding(35.dp),                                   // Adds padding around the content
         verticalArrangement = Arrangement.Center,             // Centers the content vertically
         horizontalAlignment = Alignment.CenterHorizontally     // Centers the content horizontally
     ) {
         // Header Text
+        Text("Welcome to WasteWise", fontSize = 25.sp, fontWeight = FontWeight.Medium)
+
+        Spacer(modifier = Modifier.height(10.dp))
+
         Text("Sign in or Sign up with Firebase:")
 
         Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
 
         // Email Input Field
         OutlinedTextField(
-            value = email,                                     // Current email value
-            onValueChange = { email = it },                   // Updates the email state on input change
-            label = { Text("Email") },                        // Label for the input field
-            modifier = Modifier.fillMaxWidth()                // Makes the input field take up the full width
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email", color = textColor.copy(alpha = 0.7f)) },
+            textStyle = LocalTextStyle.current.copy(color = textColor),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = buttonColor,
+                unfocusedBorderColor = buttonColor,
+            )
         )
 
         Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
 
         // Password Input Field
         OutlinedTextField(
-            value = password,                                 // Current password value
-            onValueChange = { password = it },                // Updates the password state on input change
-            label = { Text("Password") },                     // Label for the input field
-            modifier = Modifier.fillMaxWidth(),               // Makes the input field take up the full width
-            visualTransformation = PasswordVisualTransformation() // Hides the password input
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password", color = textColor.copy(alpha = 0.7f)) },
+            textStyle = LocalTextStyle.current.copy(color = textColor),
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = buttonColor,
+                unfocusedBorderColor = buttonColor,
+            )
         )
 
         Spacer(modifier = Modifier.height(20.dp))             // Adds vertical space
@@ -2485,9 +2506,11 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
                             errorMessage = task.exception?.localizedMessage
                         }
                     }
-            }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+            modifier = buttonModifier
         ) {
-            Text("Sign In")                                   // Button text
+            Text("Sign In", color = Color.White)                                   // Button text
         }
 
         Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
@@ -2506,9 +2529,11 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
                             errorMessage = task.exception?.localizedMessage
                         }
                     }
-            }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+            modifier = buttonModifier
         ) {
-            Text("Sign Up")                                   // Button text
+            Text("Sign Up", color = Color.White)                                   // Button text
         }
 
         // Display Error Message

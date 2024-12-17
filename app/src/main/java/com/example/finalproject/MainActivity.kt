@@ -985,6 +985,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(10.dp))
             }
         }
     }

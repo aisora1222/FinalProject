@@ -870,6 +870,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                     val amount = document.get("total")?.toString()?.toDoubleOrNull() ?: 0.0
                     val date = document.getString("date") ?: "Unknown"
 
+
                     if (!filterByCategory || category == selectedCategory) {
                         tempList.add(mapOf("id" to id, "category" to category, "amount" to amount, "date" to date))
                         categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + amount
@@ -977,7 +978,16 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Button(
-                                onClick = { fetchData(filterByCategory = true) },
+                                onClick = { fetchData(filterByCategory = true)
+                                    if (startDate.isEmpty() && endDate.isEmpty()) {
+                                        val today = calendar.time
+                                        calendar.add(Calendar.DAY_OF_YEAR, -30)
+                                        val last30Days = calendar.time
+
+                                        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                        startDate = sdf.format(last30Days)
+                                        endDate = sdf.format(today)
+                                    }},
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
                             ) {

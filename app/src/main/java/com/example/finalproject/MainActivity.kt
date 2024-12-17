@@ -93,11 +93,25 @@ class MainActivity : ComponentActivity() {
         // Set the content view using Jetpack Compose
         setContent {
             var isDarkTheme by rememberSaveable { mutableStateOf(false) }
+
+
+            LaunchedEffect(Unit) {
+                loadThemePreferenceFromFirebase { loadedTheme ->
+                    isDarkTheme = loadedTheme
+                }
+            }
+
             FinalProjectTheme(darkTheme = isDarkTheme) {
                 // Load the Login Screen as the starting UI
                 LoginScreen(
                     isDarkTheme = isDarkTheme,
-                    onThemeChange = { isDarkTheme = it }
+                    onThemeChange = { newTheme ->
+                        isDarkTheme = newTheme
+                        saveThemePreferenceToFirebase(newTheme) { success ->
+                            if (success) println("Theme saved successfully!")
+                            else println("Failed to save theme.")
+                        }
+                    }
                 )
             }
         }
@@ -1837,8 +1851,16 @@ fun SettingsScreen(
                 }
                 // Placeholder for theme settings card
                 item {
-                    ThemeSettingsCard(isDarkThemeEnabled = isDarkTheme,
-                        onThemeChange = onThemeChange)
+                    ThemeSettingsCard(
+                        isDarkThemeEnabled = isDarkTheme,
+                        onThemeChange = { newTheme ->
+                            onThemeChange(newTheme) // Update theme state
+                            saveThemePreferenceToFirebase(newTheme) { success ->
+                                if (success) println("Theme saved to Firestore.")
+                                else println("Failed to save theme to Firestore.")
+                            }
+                        }
+                    )
                 }
                 // Display logout card
                 item {
@@ -2163,6 +2185,49 @@ fun ThemeSettingsCard(
         }
     }
 }
+
+fun saveThemePreferenceToFirebase(isDarkTheme: Boolean, onComplete: (Boolean) -> Unit) {
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+
+    if (userId != null) {
+        firestore.collection("users")
+            .document(userId)
+            .collection("userData")
+            .document("preferences") // Fixed document for theme preferences
+            .set(mapOf("isDarkTheme" to isDarkTheme))
+            .addOnSuccessListener { onComplete(true) }
+            .addOnFailureListener { onComplete(false) }
+    } else {
+        println("User not logged in.")
+        onComplete(false)
+    }
+}
+
+fun loadThemePreferenceFromFirebase(onLoaded: (Boolean) -> Unit) {
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+
+    if (userId != null) {
+        firestore.collection("users")
+            .document(userId)
+            .collection("userData")
+            .document("preferences")
+            .get()
+            .addOnSuccessListener { document ->
+                val isDarkTheme = document.getBoolean("isDarkTheme") ?: false
+                onLoaded(isDarkTheme)
+            }
+            .addOnFailureListener {
+                println("Error loading theme preference: ${it.message}")
+                onLoaded(false) // Default to false (light theme)
+            }
+    } else {
+        println("User not logged in.")
+        onLoaded(false)
+    }
+}
+
 
 
 /**

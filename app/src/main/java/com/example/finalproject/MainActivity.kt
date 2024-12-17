@@ -844,8 +844,8 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                 val budgetValue = document.getString("budget")?.toDoubleOrNull() ?: 0.0
                 totalBudget = budgetValue
                 budgetChartData = listOf(
-                    PieChartData.Slice("Used", totalSpending.toFloat(), Color.Red),
-                    PieChartData.Slice("Remaining", (budgetValue - totalSpending).toFloat(), Color.Green)
+                    PieChartData.Slice("Used", totalSpending.toFloat(), Color(0xFF9e1c1c)),
+                    PieChartData.Slice("Remaining", (budgetValue - totalSpending).toFloat(), Color(0xFF0f5c10))
                 )
             }
             .addOnFailureListener {
@@ -1098,7 +1098,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Delete",
-                                tint = Color.Red
+                                tint = Color(0xFF9e1c1c)
                             )
                         }
                     }
@@ -2557,9 +2557,13 @@ fun LogoutCard(onSignOut: () -> Unit) {
                     // Trigger the callback to notify the parent composable
                     onSignOut()
                 },
-                modifier = Modifier.align(Alignment.End)     // Aligns the button to the end (right) of the row
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF9e1c1c)
+                ),
+                modifier = Modifier
+                    .align(Alignment.End)     // Aligns the button to the end (right) of the row
             ) {
-                Text("Sign Out")                             // Button text
+                Text("Sign Out", color = MaterialTheme.colorScheme.background)                             // Button text
             }
         }
     }
@@ -2739,7 +2743,7 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
                         }
                     }
             },
-            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF536378)),
             modifier = buttonModifier
         ) {
             Text("Sign Up", color = Color.White)                                   // Button text

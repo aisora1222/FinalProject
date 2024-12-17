@@ -83,13 +83,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
-
-
-import androidx.biometric.BiometricManager
-import androidx.biometric.BiometricPrompt
-import androidx.core.content.ContextCompat
-import androidx.fragment.app.FragmentActivity
 
 
 // Kotlin coroutine
@@ -136,7 +131,6 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Outdated Function Module for Receipt Capture
  * ReceiptCaptureScreen:
  * A composable function that allows users to capture or upload a receipt image.
  * It processes the image by uploading it to the Veryfi API for OCR extraction.
@@ -789,48 +783,44 @@ fun NavigationGraph(
 
 /**
  * MainScreen:
- * Displays the main dashboard for the user with options to view spending data,
- * apply filters, and visualize budgets and receipts in charts.
+ * A composable function that displays a greeting, user spending data in a pie chart,
+ * and a sign-out button.
  *
  * Features:
- * - Displays total spending and budget usage charts.
- * - Provides filtering options (by category, start date, and end date).
- * - Fetches and displays receipts data from Firebase Firestore.
- * - Deletes receipts and updates the charts dynamically.
+ * - Fetches receipts data from Firebase Firestore for the logged-in user.
+ * - Aggregates spending data by category and displays it in a pie chart.
+ * - Includes a loading indicator while fetching data.
+ * - Allows users to sign out of their account.
  *
- * @param userEmail The email of the currently logged-in user.
- * @param onSignOut A callback function to handle user sign-out.
+ * @param userEmail The email of the logged-in user, displayed as part of the greeting.
+ * @param onSignOut A callback function invoked when the user clicks the "Sign Out" button.
  */
 @Composable
 fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
-    // Firebase and User Setup
     val firestore = FirebaseFirestore.getInstance()
     val userId = FirebaseAuth.getInstance().currentUser?.uid
 
-    // State Variables for Data
     var pieChartData by remember { mutableStateOf<List<PieChartData.Slice>>(emptyList()) }
     var budgetChartData by remember { mutableStateOf<List<PieChartData.Slice>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var totalSpending by remember { mutableStateOf(0.0) }
     var totalBudget by remember { mutableStateOf(0.0) }
+    var chartType by remember { mutableStateOf("PIE") }
 
-    // Filter State
     var showFilters by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
 
-    // Receipt Data
+    val calendar = Calendar.getInstance()
+    val context = LocalContext.current
+
     var receiptList by remember { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
 
-    // Utility: Toast Message
-    val context = LocalContext.current
     fun showToast(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
-    // Utility: Show Date Picker Dialog
-    val calendar = Calendar.getInstance()
     fun showDatePicker(onDateSelected: (String) -> Unit) {
         DatePickerDialog(
             context,
@@ -844,7 +834,6 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
         ).show()
     }
 
-    // Function to Fetch Budget from Firebase
     fun fetchBudget() {
         firestore.collection("users")
             .document(userId ?: "")
@@ -854,7 +843,6 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             .addOnSuccessListener { document ->
                 val budgetValue = document.getString("budget")?.toDoubleOrNull() ?: 0.0
                 totalBudget = budgetValue
-                // Prepare Budget Chart Data
                 budgetChartData = listOf(
                     PieChartData.Slice("Used", totalSpending.toFloat(), Color(0xFF9e1c1c)),
                     PieChartData.Slice("Remaining", (budgetValue - totalSpending).toFloat(), Color(0xFF0f5c10))
@@ -865,7 +853,6 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             }
     }
 
-    // Function to Fetch Receipts and Prepare Pie Chart Data
     fun fetchData(filterByCategory: Boolean = false) {
         isLoading = true
         firestore.collection("users")
@@ -878,31 +865,41 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                 var total = 0.0
 
                 val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val start = sdf.parse(startDate.ifEmpty { "1970-01-01" })
-                val end = sdf.parse(endDate.ifEmpty { sdf.format(Calendar.getInstance().time) })
 
-                // Process each receipt document
+                val allDates = result.documents.mapNotNull { it.getString("date") }
+                val earliestDate = allDates.minOrNull() ?: "1970-01-01"
+                val latestDate = allDates.maxOrNull() ?: sdf.format(Calendar.getInstance().time)
+
+                val effectiveStartDate = if (startDate.isNotEmpty()) startDate else earliestDate
+                val effectiveEndDate = if (endDate.isNotEmpty()) endDate else latestDate
+
+                val start = sdf.parse(effectiveStartDate)
+                val end = sdf.parse(effectiveEndDate)
+
                 for (document in result.documents) {
                     val id = document.id
                     val category = document.getString("category") ?: "Other"
                     val amount = document.get("total")?.toString()?.toDoubleOrNull() ?: 0.0
                     val date = document.getString("date") ?: continue
+
                     val receiptDate = sdf.parse(date)
 
-                    // Apply date range and category filters
-                    if (receiptDate in start..end && (!filterByCategory || category == selectedCategory)) {
-                        tempList.add(mapOf("id" to id, "category" to category, "amount" to amount, "date" to date))
-                        categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + amount
-                        total += amount
+                    if (receiptDate != null && receiptDate in start..end) {
+                        if (!filterByCategory || (category == selectedCategory)) {
+                            tempList.add(mapOf("id" to id, "category" to category, "amount" to amount, "date" to date))
+                            categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + amount
+                            total += amount
+                        }
                     }
                 }
 
-                // Update State with Processed Data
                 receiptList = tempList
-                pieChartData = categoryMap.map { (k, v) -> PieChartData.Slice(k, v.toFloat(), randomColor()) }
+                pieChartData = categoryMap.map { (k, v) ->
+                    PieChartData.Slice(k, v.toFloat(), randomColor())
+                }
                 totalSpending = total
                 isLoading = false
-                fetchBudget() // Update budget chart
+                fetchBudget()
             }
             .addOnFailureListener {
                 showToast("Error fetching data.")
@@ -910,7 +907,6 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             }
     }
 
-    // Function to Delete a Receipt
     fun deleteReceipt(receiptId: String) {
         firestore.collection("users")
             .document(userId ?: "")
@@ -926,12 +922,10 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             }
     }
 
-    // Initial Data Fetch
     LaunchedEffect(Unit) {
         fetchData()
     }
 
-    // UI Layout
     Scaffold(topBar = { FixedTopBar(userEmail) }) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -939,59 +933,175 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            // Toggle Filters
             item {
-                IconButton(onClick = { showFilters = !showFilters }) {
-                    Icon(
-                        imageVector = if (showFilters) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Toggle Filters"
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { showFilters = !showFilters }) {
+                        Icon(
+                            imageVector = if (showFilters) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Toggle Filters",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 
-            // Filter Options
             if (showFilters) {
-                item { /* Filter UI Code (Category and Date pickers) */ }
-            }
-
-            // Total Spending
-            item {
-                Text("Total Spending: $${"%.2f".format(totalSpending)}", fontSize = 20.sp)
-            }
-
-            // Spending Pie Chart
-            item {
-                if (isLoading) CircularProgressIndicator()
-                else if (pieChartData.isNotEmpty()) BudgetPieChart(pieChartData)
-                else Text("No data available.", color = Color.Gray)
-            }
-
-            // Budget Usage Chart
-            item {
-                Text("Budget Usage Chart", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                if (budgetChartData.isNotEmpty()) BudgetPieChart(budgetChartData)
-                else Text("No budget data available.", color = Color.Gray)
-            }
-
-            // Receipt List
-            items(receiptList) { receipt ->
-                val receiptId = receipt["id"] as String
-                Card {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth().padding(16.dp)
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(4.dp)
                     ) {
-                        Column {
-                            Text("Category: ${receipt["category"]}", fontWeight = FontWeight.Bold)
-                            Text("Amount: $${receipt["amount"]}")
-                            Text("Date: ${receipt["date"]}")
-                        }
-                        IconButton(onClick = { deleteReceipt(receiptId) }) {
-                            Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.Red)
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Filter Options", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text("Select Category:")
+                            DropdownMenuBox(
+                                items = listOf("Advertising & Marketing", "Automotive", "Bank Charges & Fees",
+                                    "Legal & Professional Services", "Insurance", "Meals & Entertainment",
+                                    "Office Supplies & Software", "Taxes & Licenses", "Travel",
+                                    "Rent & Lease", "Repairs & Maintenance", "Payroll", "Utilities",
+                                    "Job Supplies", "Grocery"),
+                                selectedItem = selectedCategory,
+                                onItemSelected = { selectedCategory = it }
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Start Date: ", fontWeight = FontWeight.Medium)
+                                Text(if (startDate.isEmpty()) "Select Start Date" else startDate)
+                                Button(onClick = { showDatePicker { startDate = it } }) {
+                                    Text("Start Date")
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("End Date: ", fontWeight = FontWeight.Medium)
+                                Text(if (endDate.isEmpty()) "Select End Date" else endDate)
+                                Button(onClick = { showDatePicker { endDate = it } }) {
+                                    Text("End Date")
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Button(
+                                onClick = {
+                                    firestore.collection("users")
+                                        .document(userId ?: "")
+                                        .collection("receipts")
+                                        .get()
+                                        .addOnSuccessListener { result ->
+                                            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                            val today = Calendar.getInstance()
+
+                                            val allDates = result.documents.mapNotNull { it.getString("date") }
+                                            val earliestDate = allDates.minOrNull() ?: "1970-01-01"
+                                            val latestDate = allDates.maxOrNull() ?: sdf.format(today.time)
+
+                                            if (startDate.isEmpty()) startDate = earliestDate
+                                            if (endDate.isEmpty()) endDate = latestDate
+
+                                            if (selectedCategory.isNotEmpty() && startDate.isEmpty() && endDate.isEmpty()) {
+                                                val calendar = Calendar.getInstance()
+                                                calendar.add(Calendar.DAY_OF_YEAR, -30)
+                                                startDate = sdf.format(calendar.time)
+                                                endDate = sdf.format(today.time)
+                                            }
+
+                                            fetchData(filterByCategory = selectedCategory.isNotEmpty())
+                                        }
+                                        .addOnFailureListener {
+                                            showToast("Failed to fetch data.")
+                                        }
+                                },
+                                enabled = selectedCategory.isNotEmpty() || startDate.isNotEmpty() || endDate.isNotEmpty(),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
+                            ) {
+                                Text("Apply Filters", color = Color.White)
+                            }
+
+
+
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Total Spending: $${"%.2f".format(totalSpending)}", fontSize = 20.sp)
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                if (isLoading) {
+                    CircularProgressIndicator()
+                } else {
+                    if (pieChartData.isNotEmpty()) {
+                        BudgetPieChart(pieChartData)
+                    } else {
+                        Text(
+                            "No data available for the selected filters.",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Budget Usage Chart", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                if (budgetChartData.isNotEmpty()) {
+                    BudgetPieChart(budgetChartData)
+                } else {
+                    Text("No budget data available.", color = Color.Gray)
+                }
+            }
+
+            items(receiptList) { receipt ->
+                val receiptId = receipt["id"] as String
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "Category: ${receipt["category"]}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text("Amount: $${receipt["amount"]}", fontSize = 14.sp)
+                            Text("Date: ${receipt["date"]}", fontSize = 14.sp, color = Color.Gray)
+                        }
+                        IconButton(onClick = { deleteReceipt(receiptId) }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Delete",
+                                tint = Color(0xFF9e1c1c)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -1003,7 +1113,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
  *
  * Features:
  * - Randomly generates red, green, and blue components.
- * - Returns a `Color` object using these random values.
+ * - Returns a Color object using these random values.
  *
  * @return Color A randomly generated color with RGBA components.
  */
@@ -1016,9 +1126,6 @@ fun randomColor(): Color {
     )
 }
 
-/**
- * Outdated function Module
- * **/
 @Composable
 fun DropdownMenuBox(items: List<String>, selectedItem: String, onItemSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
@@ -1120,9 +1227,6 @@ fun BudgetPieChart(slices: List<PieChartData.Slice>) {
 }
 
 
-/**
- * Outdated function Module
- * **/
 @Composable
 fun BudgetBreakdownDonutChart() {
     val totalBudget = 5000f // Total budget in dollars
@@ -1215,7 +1319,7 @@ fun BudgetBreakdownDonutChart() {
  * - Displays a page indicator at the top to show the current page.
  * - Uses drag gestures to detect swipes and update the current page.
  *
- * @note Pages are defined as `PhotoGalleryScreen`, `SwipeInstructionPage`, and `ManualDataInputScreen`.
+ * @note Pages are defined as PhotoGalleryScreen, SwipeInstructionPage, and ManualDataInputScreen.
  */
 @Composable
 fun NewScreen() {
@@ -1533,7 +1637,7 @@ fun PhotoGalleryScreen() {
                     // Button to launch the camera
                     Button(onClick = {
                         cameraLauncher.launch(null)
-                        },
+                    },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary, // Theme's primary color
                             contentColor = MaterialTheme.colorScheme.onPrimary // Text color for primary background
@@ -1548,7 +1652,7 @@ fun PhotoGalleryScreen() {
                     // Button to open the gallery and select an image
                     Button(onClick = {
                         galleryLauncher.launch("image/*")
-                        },
+                    },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary, // Theme's primary color
                             contentColor = MaterialTheme.colorScheme.onPrimary // Text color for primary background
@@ -1736,94 +1840,110 @@ fun ManualDataInputScreen() {
                 horizontalAlignment = Alignment.Start
             ) {
                 // Category Selection
-                CardSection(title = "Category") {
-                    SimpleDropdownMenu(
-                        items = categories,
-                        selectedItem = selectedCategory,
-                        onItemSelected = { selectedCategory = it }
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
+                Text("Select a Category:")
+                SimpleDropdownMenu(
+                    items = categories,
+                    selectedItem = selectedCategory,
+                    onItemSelected = { selectedCategory = it }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Date Selection
-                CardSection(title = "Date Selection") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DropdownMenuField(years, selectedYear) { selectedYear = it }
-                        DropdownMenuField(months, selectedMonth) { selectedMonth = it }
-                        DropdownMenuField(daysInMonth, selectedDay) { selectedDay = it }
-                    }
-                }
+                Text("Select Year:",)
+                DropdownMenuField(years, selectedYear) { selectedYear = it }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Items Input
-                CardSection(title = "Items") {
-                    items.forEachIndexed { index, (name, price) ->
-                        Row(
+                Text("Select Month:")
+                DropdownMenuField(months, selectedMonth) { selectedMonth = it }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("Select Day:")
+                DropdownMenuField(daysInMonth, selectedDay) { selectedDay = it }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Item Input Fields
+                Text("Enter Items:")
+                items.forEachIndexed { index, (name, price) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { updatedName -> items[index] = updatedName to price },
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            OutlinedTextField(
-                                value = name,
-                                onValueChange = { updatedName -> items[index] = updatedName to price },
-                                modifier = Modifier.weight(1f),
-                                label = { Text("Item Name") }
+                                .weight(1f),
+                            label = { Text("Item Name", color = MaterialTheme.colorScheme.onSurface) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedTextField(
-                                value = price,
-                                onValueChange = { updatedPrice ->
-                                    val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$")
-                                    if (updatedPrice.matches(regex) || updatedPrice.isEmpty()) {
-                                        items[index] = name to updatedPrice
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                label = { Text("Price") },
-                                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = price,
+                            onValueChange = { updatedPrice ->
+                                val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$")
+                                if (updatedPrice.matches(regex) || updatedPrice.isEmpty()) {
+                                    items[index] = name to updatedPrice
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("Price", color = MaterialTheme.colorScheme.onSurface) },
+                            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(onClick = { items.removeAt(index) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF9e1c1c)
-                                )) {
-                                Text("Remove", color = MaterialTheme.colorScheme.background)
-                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(onClick = { items.removeAt(index) }) {
+                            Text("Remove")
                         }
                     }
-                    Button(onClick = { items.add("" to "") }) {
-                        Text("Add Item")
-                    }
+                }
+                Button(
+                    onClick = { items.add("" to "") },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Add Item")
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // Tax Input
-                CardSection(title = "Tax") {
-                    OutlinedTextField(
-                        value = tax,
-                        onValueChange = { updatedTax ->
-                            val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$")
-                            if (updatedTax.matches(regex) || updatedTax.isEmpty()) {
-                                tax = updatedTax
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Tax") },
-                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
+                Text("Tax:")
+                OutlinedTextField(
+                    value = tax,
+                    onValueChange = { updatedTax ->
+                        val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$") // Regex: up to 4 digits and 2 decimal places
+                        if (updatedTax.matches(regex) || updatedTax.isEmpty()) {
+                            tax = updatedTax
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Tax", color = MaterialTheme.colorScheme.onSurface) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface
                     )
-                }
+                )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Total
-                CardSection(title = "Total") {
-                    Text("Total: $${"%.2f".format(total)}", style = MaterialTheme.typography.titleMedium)
-                }
+                // Total Display
+                Text("Total: $${"%.2f".format(total)}")
 
-                Spacer(modifier = Modifier.height(10.dp))
-                // Submit Button
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Submit Button with Validation
                 Button(
                     onClick = {
                         val hasEmptyItem = items.any { it.first.isBlank() || it.second.isBlank() }
@@ -1872,46 +1992,12 @@ fun ManualDataInputScreen() {
                     }
                 }
 
+
             }
         }
     }
 }
 
-/**
- * CardSection:
- * A reusable composable that displays a section with a title and content inside a styled Card.
- *
- * Features:
- * - Provides consistent padding, elevation, and rounded corners for the card.
- * - Displays a title at the top followed by any composable content passed as a lambda.
- *
- * @param title The title of the section to be displayed at the top of the card.
- * @param content A composable lambda function representing the content of the card.
- */
-@Composable
-fun CardSection(title: String, content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(), // Make the card span the full width
-        shape = RoundedCornerShape(12.dp), // Rounded corners with 12.dp radius
-        elevation = CardDefaults.cardElevation(4.dp) // Set elevation for a shadow effect
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp), // Padding inside the card
-            verticalArrangement = Arrangement.spacedBy(8.dp) // Spacing between items in the column
-        ) {
-            // Title Text
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium, // Use Material Theme typography
-                fontWeight = FontWeight.Bold // Bold font for the title
-            )
-
-            // Content
-            content() // Lambda function allows flexible composable content inside the card
-        }
-    }
-}
 
 
 /**
@@ -2077,8 +2163,8 @@ fun SettingsScreen(
  * A composable function that displays a short toast message on the screen.
  *
  * Features:
- * - Uses `Toast` from the Android system to display the provided message.
- * - Triggered when the `message` parameter changes.
+ * - Uses Toast from the Android system to display the provided message.
+ * - Triggered when the message parameter changes.
  *
  * @param message A string containing the message to display in the toast.
  */
@@ -2101,7 +2187,7 @@ fun ToastMessage(message: String) {
  *
  * Features:
  * - Displays a title and the user's email address.
- * - Uses Material Design's `Card` for styling with rounded corners and elevation.
+ * - Uses Material Design's Card for styling with rounded corners and elevation.
  *
  * @param userEmail The email address of the user to be displayed on the card.
  */
@@ -2225,7 +2311,7 @@ fun BudgetSelectionCard(
  * Features:
  * - Saves the budget value to Firestore under the logged-in user's data.
  * - Ensures that the user is authenticated before attempting to save.
- * - Uses `SetOptions.merge()` to avoid overwriting other fields in the document.
+ * - Uses SetOptions.merge() to avoid overwriting other fields in the document.
  * - Provides success or failure feedback through a callback.
  *
  * @param budget The budget value (as a string) to be saved to Firestore.
@@ -2378,87 +2464,47 @@ fun ThemeSettingsCard(
     }
 }
 
-/**
- * saveThemePreferenceToFirebase:
- * Saves the user's theme preference (Dark or Light mode) to Firebase Firestore.
- *
- * This function writes the theme preference to a fixed document under the `userData` collection
- * for the logged-in user. It supports a callback to notify whether the operation succeeded.
- *
- * @param isDarkTheme A Boolean indicating whether the dark theme is enabled (true) or not (false).
- * @param onComplete A callback function with a Boolean parameter indicating success (true) or failure (false).
- */
 fun saveThemePreferenceToFirebase(isDarkTheme: Boolean, onComplete: (Boolean) -> Unit) {
-    // Initialize Firestore and get the current user's ID
     val firestore = FirebaseFirestore.getInstance()
     val userId = FirebaseAuth.getInstance().currentUser?.uid
 
-    // Check if the user is logged in
     if (userId != null) {
-        // Save the theme preference under the user's preferences document
         firestore.collection("users")
             .document(userId)
             .collection("userData")
-            .document("preferences") // Fixed document for storing preferences
-            .set(mapOf("isDarkTheme" to isDarkTheme)) // Save the theme preference as a key-value pair
-            .addOnSuccessListener {
-                // Notify the caller of a successful operation
-                onComplete(true)
-            }
-            .addOnFailureListener {
-                // Notify the caller of a failed operation
-                onComplete(false)
-            }
+            .document("preferences") // Fixed document for theme preferences
+            .set(mapOf("isDarkTheme" to isDarkTheme))
+            .addOnSuccessListener { onComplete(true) }
+            .addOnFailureListener { onComplete(false) }
     } else {
-        // Handle the case when the user is not logged in
         println("User not logged in.")
         onComplete(false)
     }
 }
 
-
-/**
- * loadThemePreferenceFromFirebase:
- * Retrieves the user's theme preference (Dark or Light mode) from Firebase Firestore.
- *
- * This function reads the theme preference from a fixed document under the `userData` collection
- * for the logged-in user. If successful, it invokes the callback with the theme preference.
- *
- * @param onLoaded A callback function that receives a Boolean parameter indicating the theme preference:
- *                 - true: Dark theme enabled.
- *                 - false: Light theme (or default) enabled.
- *                 If the operation fails or no preference is found, the default is false.
- */
 fun loadThemePreferenceFromFirebase(onLoaded: (Boolean) -> Unit) {
-    // Initialize Firestore and get the current user's ID
     val firestore = FirebaseFirestore.getInstance()
     val userId = FirebaseAuth.getInstance().currentUser?.uid
 
-    // Check if the user is logged in
     if (userId != null) {
-        // Attempt to retrieve the theme preference document from Firestore
         firestore.collection("users")
             .document(userId)
             .collection("userData")
             .document("preferences")
             .get()
             .addOnSuccessListener { document ->
-                // Extract the theme preference (defaults to false if not set)
                 val isDarkTheme = document.getBoolean("isDarkTheme") ?: false
-                onLoaded(isDarkTheme) // Pass the retrieved value to the callback
+                onLoaded(isDarkTheme)
             }
             .addOnFailureListener {
-                // Handle failure to retrieve the document
                 println("Error loading theme preference: ${it.message}")
-                onLoaded(false) // Default to light theme in case of failure
+                onLoaded(false) // Default to false (light theme)
             }
     } else {
-        // Handle the case when the user is not logged in
         println("User not logged in.")
-        onLoaded(false) // Default to light theme if user is not authenticated
+        onLoaded(false)
     }
 }
-
 
 
 
@@ -2481,31 +2527,26 @@ fun LogoutCard(onSignOut: () -> Unit) {
         shape = RoundedCornerShape(10.dp),                   // Adds rounded corners with a 10.dp radius
         elevation = CardDefaults.cardElevation(4.dp)         // Adds subtle elevation for a lifted effect
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                //.padding(20.dp)
-            ,                             // Adds padding around the content
-            verticalAlignment = Alignment.CenterVertically,   // Align items vertically at the center
-            horizontalArrangement = Arrangement.SpaceBetween  // Pushes the button to the end (right)
-        ){
-            Column(
-                modifier = Modifier.padding(20.dp),              // Adds padding around the content
-                verticalArrangement = Arrangement.spacedBy(10.dp) // Adds spacing between child elements
-            ) {
-                // Title Text: "Logout"
-                Text(
-                    text = "Logout",                             // Displays the section title
-                    style = MaterialTheme.typography.titleMedium, // Applies MaterialTheme for consistent styling
-                    fontWeight = FontWeight.Bold                 // Makes the title bold
-                )
+        // Column: Arranges the content vertically
+        Column(
+            modifier = Modifier.padding(20.dp),              // Adds padding around the content
+            verticalArrangement = Arrangement.spacedBy(10.dp) // Adds spacing between child elements
+        ) {
+            // Title Text: "Logout"
+            Text(
+                text = "Logout",                             // Displays the section title
+                style = MaterialTheme.typography.titleMedium, // Applies MaterialTheme for consistent styling
+                fontWeight = FontWeight.Bold                 // Makes the title bold
+            )
 
-                // Description Text: Provides instructions to the user
-                Text(
-                    text = "Sign out from your account.",        // Instructional text
-                    color = Color.Gray                           // Sets the text color to gray
-                )
-            }
+            // Description Text: Provides instructions to the user
+            Text(
+                text = "Sign out from your account.",        // Instructional text
+                color = Color.Gray                           // Sets the text color to gray
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))         // Adds spacing between description and button
+
             // Sign Out Button
             Button(
                 onClick = {
@@ -2519,12 +2560,11 @@ fun LogoutCard(onSignOut: () -> Unit) {
                     containerColor = Color(0xFF9e1c1c)
                 ),
                 modifier = Modifier
-                    .padding(10.dp)
+                    .align(Alignment.End)     // Aligns the button to the end (right) of the row
             ) {
                 Text("Sign Out", color = MaterialTheme.colorScheme.background)                             // Button text
             }
         }
-
     }
 }
 
@@ -2535,8 +2575,8 @@ fun LogoutCard(onSignOut: () -> Unit) {
  * A composable function that manages the login state and displays the appropriate screen.
  *
  * Features:
- * - Displays the `AuthScreen` when the user is not logged in.
- * - Displays the `MainAppNav` when the user is authenticated.
+ * - Displays the AuthScreen when the user is not logged in.
+ * - Displays the MainAppNav when the user is authenticated.
  * - Handles user sign-out by resetting the login state.
  *
  * @note This function uses Firebase Authentication to manage user authentication state.
@@ -2599,60 +2639,41 @@ fun LoginScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit) {
  *
  * @param onAuthComplete A callback function triggered when authentication is successfully completed.
  */
-
 @Composable
 fun AuthScreen(onAuthComplete: () -> Unit) {
     // Initialize Firebase Authentication instance
     val auth = FirebaseAuth.getInstance()
-    val context = LocalContext.current
 
-    val activity = getFragmentActivity() // Get FragmentActivity
-    val executor = activity?.let { ContextCompat.getMainExecutor(it) }
-
-    val biometricPrompt = activity?.let {
-        BiometricPrompt(it, executor!!, object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                super.onAuthenticationSucceeded(result)
-                onAuthComplete()
-            }
-
-            override fun onAuthenticationFailed() {
-                super.onAuthenticationFailed()
-                Toast.makeText(context, "Biometric authentication failed", Toast.LENGTH_SHORT).show()
-            }
-        })
-    }
-
-    val promptInfo = BiometricPrompt.PromptInfo.Builder()
-        .setTitle("Biometric Login")
-        .setSubtitle("Authenticate with your fingerprint or face")
-        .setNegativeButtonText("Cancel")
-        .build()
-
-
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    // State variables for email, password, and error message
+    var email by remember { mutableStateOf("") }                // Stores the email input
+    var password by remember { mutableStateOf("") }             // Stores the password input
+    var errorMessage by remember { mutableStateOf<String?>(null) } // Holds an error message when sign-in fails
 
     val textColor = Color(0xFF000000) // Black text
     val buttonColor = Color(0xFF414e5e) // Blue button color
 
     val buttonModifier = Modifier
-        .fillMaxWidth()
-        .height(48.dp)
+        .fillMaxWidth() // Makes the buttons take up the full width
+        .height(48.dp) // Ensures consistent height for both buttons
 
-    // UI Layout
+    // Main layout: Column to arrange components vertically
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(35.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .fillMaxSize()                                     // Makes the column take up the full screen
+            .padding(35.dp),                                   // Adds padding around the content
+        verticalArrangement = Arrangement.Center,             // Centers the content vertically
+        horizontalAlignment = Alignment.CenterHorizontally     // Centers the content horizontally
     ) {
+        // Header Text
         Text("Welcome to WasteWise", fontSize = 25.sp, fontWeight = FontWeight.Medium)
 
         Spacer(modifier = Modifier.height(10.dp))
 
+        Text("Sign in or Sign up with Firebase:")
+
+        Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
+
+        // Email Input Field
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -2665,8 +2686,9 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
             )
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
 
+        // Password Input Field
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -2680,120 +2702,59 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
             )
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(20.dp))             // Adds vertical space
 
+        // Sign In Button
         Button(
             onClick = {
-                auth.signInWithEmailAndPassword(email, password).addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        val userId = auth.currentUser!!.uid
-                        checkBiometricPreference(userId) { biometricEnabled ->
-                            if (biometricEnabled && biometricPrompt != null) {
-                                biometricPrompt.authenticate(promptInfo)
-                            } else {
-                                onAuthComplete()
-                            }
+                // Firebase Authentication: Sign in with email and password
+                auth.signInWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            // Invoke the callback when sign-in is successful
+                            onAuthComplete()
+                        } else {
+                            // Display the error message if sign-in fails
+                            errorMessage = task.exception?.localizedMessage
                         }
-                    } else {
-                        errorMessage = task.exception?.localizedMessage
                     }
-                }
-            }
-        ) { Text("Sign In", color = Color.White) }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+            modifier = buttonModifier
+        ) {
+            Text("Sign In", color = Color.White)                                   // Button text
+        }
 
-        var showBiometricDialog by remember { mutableStateOf(false) }
-        var userIdForBiometrics by remember { mutableStateOf("") }
+        Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
 
-        Button(
+        // Sign Up Button
+        TextButton(
             onClick = {
-                auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        userIdForBiometrics = auth.currentUser!!.uid
-                        showBiometricDialog = true // Trigger the dialog
-                    } else {
-                        errorMessage = task.exception?.localizedMessage
+                // Firebase Authentication: Create a new user with email and password
+                auth.createUserWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            // Invoke the callback when sign-up is successful
+                            onAuthComplete()
+                        } else {
+                            // Display the error message if sign-up fails
+                            errorMessage = task.exception?.localizedMessage
+                        }
                     }
-                }
-            }
-        ) { Text("Sign Up", color = Color.White) }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF536378)),
+            modifier = buttonModifier
+        ) {
+            Text("Sign Up", color = Color.White)                                   // Button text
+        }
 
-// Biometric Setup Dialog
-        if (showBiometricDialog) {
-            showBiometricSetupDialog(
-                onConfirm = {
-                    saveBiometricPreference(userIdForBiometrics, true) // Save preference
-                    biometricPrompt?.authenticate(promptInfo)          // Trigger biometric prompt
-                    showBiometricDialog = false
-                },
-                onCancel = {
-                    showBiometricDialog = false
-                    onAuthComplete()
-                }
+        // Display Error Message
+        errorMessage?.let {
+            Spacer(modifier = Modifier.height(10.dp))         // Adds vertical space
+            Text(
+                text = "Error: $it",                          // Displays the error message
+                color = MaterialTheme.colorScheme.error       // Uses the theme's error color
             )
         }
-
-
-
-
-
-
-
-
-        errorMessage?.let {
-            Spacer(modifier = Modifier.height(10.dp))
-            Text("Error: $it", color = MaterialTheme.colorScheme.error)
-        }
     }
 }
-
-
-fun saveBiometricPreference(userId: String, enabled: Boolean) {
-    FirebaseFirestore.getInstance().collection("users")
-        .document(userId)
-        .collection("userData")
-        .document("preferences")
-        .set(mapOf("biometricEnabled" to enabled), SetOptions.merge())
-}
-
-
-fun checkBiometricPreference(userId: String, onResult: (Boolean) -> Unit) {
-    FirebaseFirestore.getInstance().collection("users")
-        .document(userId)
-        .collection("userData")
-        .document("preferences")
-        .get()
-        .addOnSuccessListener { document ->
-            val enabled = document.getBoolean("biometricEnabled") ?: false
-            onResult(enabled)
-        }
-        .addOnFailureListener { onResult(false) }
-}
-
-
-@Composable
-fun getFragmentActivity(): FragmentActivity? {
-    val context = LocalContext.current
-    return when (context) {
-        is FragmentActivity -> context
-        else -> null
-    }
-}
-@Composable
-fun showBiometricSetupDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = { onCancel() },
-        title = { Text("Enable Biometric Login?") },
-        text = { Text("Would you like to set up biometric login for faster authentication?") },
-        confirmButton = {
-            Button(onClick = onConfirm) {
-                Text("Yes")
-            }
-        },
-        dismissButton = {
-            Button(onClick = onCancel) {
-                Text("No")
-            }
-        }
-    )
-}
-

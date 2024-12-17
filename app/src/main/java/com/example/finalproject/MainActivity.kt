@@ -885,6 +885,21 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             }
     }
 
+    fun deleteReceipt(receiptId: String) {
+        firestore.collection("users")
+            .document(userId ?: "")
+            .collection("receipts")
+            .document(receiptId)
+            .delete()
+            .addOnSuccessListener {
+                showToast("Receipt deleted successfully")
+                fetchData() // Refresh the data
+            }
+            .addOnFailureListener {
+                showToast("Failed to delete receipt.")
+            }
+    }
+
     LaunchedEffect(Unit) {
         fetchData()
     }
@@ -942,7 +957,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                                 Text(startDate.ifEmpty { "Not set" })
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Button(onClick = { showDatePicker { startDate = it } }) {
-                                    Text("Pick Start Date", color = MaterialTheme.colorScheme.background)
+                                    Text("Pick Start Date")
                                 }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -950,7 +965,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                                 Text(endDate.ifEmpty { "Not set" })
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Button(onClick = { showDatePicker { endDate = it } }) {
-                                    Text("Pick End Date", color = MaterialTheme.colorScheme.background)
+                                    Text("Pick End Date")
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -960,7 +975,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
                             ) {
-                                Text("Apply Filters", color = MaterialTheme.colorScheme.background)
+                                Text("Apply Filters", color = Color.White)
                             }
                         }
                     }
@@ -997,6 +1012,43 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                     BudgetPieChart(budgetChartData)
                 } else {
                     Text("No budget data available.", color = Color.Gray)
+                }
+            }
+
+            items(receiptList) { receipt ->
+                val receiptId = receipt["id"] as String
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "Category: ${receipt["category"]}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text("Amount: $${receipt["amount"]}", fontSize = 14.sp)
+                            Text("Date: ${receipt["date"]}", fontSize = 14.sp, color = Color.Gray)
+                        }
+                        IconButton(onClick = { deleteReceipt(receiptId) }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Delete",
+                                tint = Color.Red
+                            )
+                        }
+                    }
                 }
             }
         }

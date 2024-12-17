@@ -1638,7 +1638,7 @@ fun ManualDataInputScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White),
+                    .background(color = MaterialTheme.colorScheme.background),
                 contentAlignment = Alignment.Center
             ) {
                 AnimatedCheckmark()

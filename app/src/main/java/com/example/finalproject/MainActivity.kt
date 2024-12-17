@@ -1245,10 +1245,6 @@ fun SettingsScreen(
             ToastMessage("Budget saved successfully!")
             showSaveSuccess = false
         }
-        else {
-            ToastMessage("Budget not saved")
-            showSaveSuccess = false
-        }
     }
 }
 
@@ -1358,17 +1354,24 @@ fun loadBudgetFromFirebase(onLoaded: (String) -> Unit) {
     val userId = FirebaseAuth.getInstance().currentUser?.uid
 
     if (userId != null) {
-        firestore.collection("users").document(userId).get()
+        // Load from users/{userId}/userData/budget
+        firestore.collection("users").document(userId).collection("userData").document("budget")
+            .get()
             .addOnSuccessListener { document ->
                 val budget = document.getString("budget") ?: ""
+                println("Budget loaded: $budget")
                 onLoaded(budget)
             }
             .addOnFailureListener {
                 println("Error loading budget: ${it.message}")
-                onLoaded("")
+                onLoaded("") // Default to empty string
             }
+    } else {
+        println("User not logged in")
+        onLoaded("") // Default value when user is not logged in
     }
 }
+
 
 
 @Composable

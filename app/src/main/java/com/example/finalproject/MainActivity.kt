@@ -1039,7 +1039,7 @@ fun BudgetPieChart(slices: List<PieChartData.Slice>) {
                     Text(
                         text = slice.label,                      // Category name
                         fontSize = 14.sp,                        // Sets text size to 14sp
-                        color = Color.Black                      // Sets text color to black
+                        color = MaterialTheme.colorScheme.onSurface                     // Sets text color to black
                     )
                 }
             }

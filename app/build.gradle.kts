@@ -97,4 +97,6 @@ dependencies {
     implementation("co.yml:ycharts:2.1.0")
     implementation(libs.okhttp)
     implementation(libs.gson)
+    implementation("androidx.biometric:biometric:1.2.0-alpha04")
+
 }

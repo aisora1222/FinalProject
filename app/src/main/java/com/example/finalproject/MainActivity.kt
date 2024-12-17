@@ -86,6 +86,12 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
 
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+
+
 // Kotlin coroutine
 import kotlinx.coroutines.delay
 import java.io.File
@@ -2593,41 +2599,60 @@ fun LoginScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit) {
  *
  * @param onAuthComplete A callback function triggered when authentication is successfully completed.
  */
+
 @Composable
 fun AuthScreen(onAuthComplete: () -> Unit) {
     // Initialize Firebase Authentication instance
     val auth = FirebaseAuth.getInstance()
+    val context = LocalContext.current
 
-    // State variables for email, password, and error message
-    var email by remember { mutableStateOf("") }                // Stores the email input
-    var password by remember { mutableStateOf("") }             // Stores the password input
-    var errorMessage by remember { mutableStateOf<String?>(null) } // Holds an error message when sign-in fails
+    val activity = getFragmentActivity() // Get FragmentActivity
+    val executor = activity?.let { ContextCompat.getMainExecutor(it) }
+
+    val biometricPrompt = activity?.let {
+        BiometricPrompt(it, executor!!, object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                super.onAuthenticationSucceeded(result)
+                onAuthComplete()
+            }
+
+            override fun onAuthenticationFailed() {
+                super.onAuthenticationFailed()
+                Toast.makeText(context, "Biometric authentication failed", Toast.LENGTH_SHORT).show()
+            }
+        })
+    }
+
+    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+        .setTitle("Biometric Login")
+        .setSubtitle("Authenticate with your fingerprint or face")
+        .setNegativeButtonText("Cancel")
+        .build()
+
+
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val textColor = Color(0xFF000000) // Black text
     val buttonColor = Color(0xFF414e5e) // Blue button color
 
     val buttonModifier = Modifier
-        .fillMaxWidth() // Makes the buttons take up the full width
-        .height(48.dp) // Ensures consistent height for both buttons
+        .fillMaxWidth()
+        .height(48.dp)
 
-    // Main layout: Column to arrange components vertically
+    // UI Layout
     Column(
         modifier = Modifier
-            .fillMaxSize()                                     // Makes the column take up the full screen
-            .padding(35.dp),                                   // Adds padding around the content
-        verticalArrangement = Arrangement.Center,             // Centers the content vertically
-        horizontalAlignment = Alignment.CenterHorizontally     // Centers the content horizontally
+            .fillMaxSize()
+            .padding(35.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Header Text
         Text("Welcome to WasteWise", fontSize = 25.sp, fontWeight = FontWeight.Medium)
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Text("Sign in or Sign up with Firebase:")
-
-        Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
-
-        // Email Input Field
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -2640,9 +2665,8 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
             )
         )
 
-        Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Password Input Field
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -2656,59 +2680,120 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
             )
         )
 
-        Spacer(modifier = Modifier.height(20.dp))             // Adds vertical space
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // Sign In Button
         Button(
             onClick = {
-                // Firebase Authentication: Sign in with email and password
-                auth.signInWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            // Invoke the callback when sign-in is successful
-                            onAuthComplete()
-                        } else {
-                            // Display the error message if sign-in fails
-                            errorMessage = task.exception?.localizedMessage
+                auth.signInWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val userId = auth.currentUser!!.uid
+                        checkBiometricPreference(userId) { biometricEnabled ->
+                            if (biometricEnabled && biometricPrompt != null) {
+                                biometricPrompt.authenticate(promptInfo)
+                            } else {
+                                onAuthComplete()
+                            }
                         }
+                    } else {
+                        errorMessage = task.exception?.localizedMessage
                     }
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-            modifier = buttonModifier
-        ) {
-            Text("Sign In", color = Color.White)                                   // Button text
-        }
+                }
+            }
+        ) { Text("Sign In", color = Color.White) }
 
-        Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
+        var showBiometricDialog by remember { mutableStateOf(false) }
+        var userIdForBiometrics by remember { mutableStateOf("") }
 
-        // Sign Up Button
-        TextButton(
+        Button(
             onClick = {
-                // Firebase Authentication: Create a new user with email and password
-                auth.createUserWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            // Invoke the callback when sign-up is successful
-                            onAuthComplete()
-                        } else {
-                            // Display the error message if sign-up fails
-                            errorMessage = task.exception?.localizedMessage
-                        }
+                auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        userIdForBiometrics = auth.currentUser!!.uid
+                        showBiometricDialog = true // Trigger the dialog
+                    } else {
+                        errorMessage = task.exception?.localizedMessage
                     }
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF536378)),
-            modifier = buttonModifier
-        ) {
-            Text("Sign Up", color = Color.White)                                   // Button text
+                }
+            }
+        ) { Text("Sign Up", color = Color.White) }
+
+// Biometric Setup Dialog
+        if (showBiometricDialog) {
+            showBiometricSetupDialog(
+                onConfirm = {
+                    saveBiometricPreference(userIdForBiometrics, true) // Save preference
+                    biometricPrompt?.authenticate(promptInfo)          // Trigger biometric prompt
+                    showBiometricDialog = false
+                },
+                onCancel = {
+                    showBiometricDialog = false
+                    onAuthComplete()
+                }
+            )
         }
 
-        // Display Error Message
+
+
+
+
+
+
+
         errorMessage?.let {
-            Spacer(modifier = Modifier.height(10.dp))         // Adds vertical space
-            Text(
-                text = "Error: $it",                          // Displays the error message
-                color = MaterialTheme.colorScheme.error       // Uses the theme's error color
-            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text("Error: $it", color = MaterialTheme.colorScheme.error)
         }
     }
 }
+
+
+fun saveBiometricPreference(userId: String, enabled: Boolean) {
+    FirebaseFirestore.getInstance().collection("users")
+        .document(userId)
+        .collection("userData")
+        .document("preferences")
+        .set(mapOf("biometricEnabled" to enabled), SetOptions.merge())
+}
+
+
+fun checkBiometricPreference(userId: String, onResult: (Boolean) -> Unit) {
+    FirebaseFirestore.getInstance().collection("users")
+        .document(userId)
+        .collection("userData")
+        .document("preferences")
+        .get()
+        .addOnSuccessListener { document ->
+            val enabled = document.getBoolean("biometricEnabled") ?: false
+            onResult(enabled)
+        }
+        .addOnFailureListener { onResult(false) }
+}
+
+
+@Composable
+fun getFragmentActivity(): FragmentActivity? {
+    val context = LocalContext.current
+    return when (context) {
+        is FragmentActivity -> context
+        else -> null
+    }
+}
+@Composable
+fun showBiometricSetupDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { onCancel() },
+        title = { Text("Enable Biometric Login?") },
+        text = { Text("Would you like to set up biometric login for faster authentication?") },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Yes")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onCancel) {
+                Text("No")
+            }
+        }
+    )
+}
+

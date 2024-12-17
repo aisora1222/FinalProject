@@ -231,11 +231,6 @@ The **FinalProject** is an Android budgeting application that helps users manage
 
 ---
 
-## **License**
-This project is licensed under the **MIT License**.
-
----
-
 ## **Contributors**
 - **Brandon Dunegan** - Developer and Maintainer.
 - **Jewoo Lee** - Developer and Maintainer.

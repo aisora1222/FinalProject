@@ -977,6 +977,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Start Date: ", fontWeight = FontWeight.Medium)
                                 Text(if (startDate.isEmpty()) "Select Start Date" else startDate)
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Button(onClick = { showDatePicker { startDate = it } }) {
                                     Text("Start Date")
                                 }
@@ -984,6 +985,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("End Date: ", fontWeight = FontWeight.Medium)
                                 Text(if (endDate.isEmpty()) "Select End Date" else endDate)
+                                Spacer(modifier = Modifier.width(23.dp))
                                 Button(onClick = { showDatePicker { endDate = it } }) {
                                     Text("End Date")
                                 }

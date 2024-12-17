@@ -440,7 +440,7 @@ fun NavigationGraph(navController: NavHostController, userEmail: String, onSignO
     NavHost(navController, startDestination = "new") {
         composable("main") { MainScreen(userEmail, onSignOut) }
         composable("new") { NewScreen() }
-        composable("settings") { SettingsScreen() }
+        composable("settings") { SettingsScreen(userEmail) }
     }
 }
 //Main Screen ---------------------------------------------------------------------------------
@@ -1108,24 +1108,33 @@ fun ManualDataInputScreen() {
 data class Setting(val title: String, val description: String)
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(userEmail: String) {
     // Generate 100 fake settings
     val settingsList = List(100) { index ->
         Setting(title = "Setting ${index + 1}", description = "Description for Setting ${index + 1}")
     }
 
-
-
-    // LazyColumn to display settings
-    LazyColumn(
-        modifier = Modifier
+    Scaffold(
+        topBar = { FixedTopBar(userEmail) } 
+    ) { innerPadding ->
+        Column( modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        items(settingsList) { setting ->
-            SettingItem(title = setting.title, description = setting.description)
+        ){
+            Spacer(modifier = Modifier.height(10.dp))
+
+            LazyColumn(
+                contentPadding = innerPadding,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(settingsList) { setting ->
+                    SettingItem(title = setting.title, description = setting.description)
+                }
+            }
         }
+
     }
 
 }

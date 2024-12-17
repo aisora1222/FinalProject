@@ -79,8 +79,12 @@ import java.util.Calendar
 import java.util.Locale
 import android.app.DatePickerDialog
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.vector.ImageVector
 
 
 // Kotlin coroutine
@@ -574,13 +578,13 @@ fun ExpandableBottomNavigationBar(
                 verticalAlignment = Alignment.CenterVertically // Vertically align the content to center
             ) {
                 // Navigation tab for "Main" screen
-                BottomNavigationTab("Main", navController, "main")
+                BottomNavigationTab("Main", Icons.Filled.Home, navController, "main")
 
                 // Navigation tab for "New" screen
-                BottomNavigationTab("New", navController, "new")
+                BottomNavigationTab("New",  Icons.Filled.Add, navController, "new")
 
                 // Navigation tab for "Settings" screen
-                BottomNavigationTab("Settings", navController, "settings")
+                BottomNavigationTab("Settings",  Icons.Filled.Settings, navController, "settings")
 
                 // Minimize button: Downward arrow icon
                 Icon(
@@ -710,16 +714,18 @@ fun FixedTopBar(userEmail: String) {
 @Composable
 fun BottomNavigationTab(
     label: String,                // The text label for the navigation tab
+    icon: ImageVector,
     navController: NavHostController, // The NavController responsible for managing navigation
     route: String                 // The route to navigate to when the tab is clicked
 ) {
-    // Text composable to display the label as a clickable navigation tab
-    Text(
-        text = label, // Sets the text content to the provided label
+    Icon(
+        imageVector = icon, // Set the icon image vector
+        contentDescription = label, // Accessibility description
         modifier = Modifier
-            .padding(20.dp) // Adds uniform padding around the label for better spacing
+            .size(50.dp) // Set the icon size
+            .padding(12.dp) // Adds padding around the icon
             .clickable {
-                // Navigate to the specified route when the text is clicked
+                // Navigate to the specified route when the icon is clicked
                 navController.navigate(route)
             }
     )

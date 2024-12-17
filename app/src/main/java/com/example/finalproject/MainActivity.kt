@@ -1192,7 +1192,7 @@ fun DropdownMenuField(
 
 
 //Settings Screen ---------------------------------------------------------------------------------
-
+//Ethan's Code
 @Composable
 fun SettingsScreen(userEmail: String, onSignOut: () -> Unit) {
 
@@ -1356,9 +1356,6 @@ fun LogoutCard(onSignOut: () -> Unit) {
     }
 }
 
-
-
-//Ethan's Code
 
 @Composable
 fun LoginScreen() {

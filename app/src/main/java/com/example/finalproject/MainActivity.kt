@@ -866,29 +866,26 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
 
                 val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
-                // Step 1: Find the earliest and latest dates in the database
                 val allDates = result.documents.mapNotNull { it.getString("date") }
-                val earliestDate = allDates.minOrNull()
-                val latestDate = allDates.maxOrNull()
+                val earliestDate = allDates.minOrNull() ?: "1970-01-01"
+                val latestDate = allDates.maxOrNull() ?: sdf.format(Calendar.getInstance().time)
 
-                // Step 2: Set default startDate or endDate if only one is provided
-                if (startDate.isEmpty() && earliestDate != null) startDate = earliestDate
-                if (endDate.isEmpty() && latestDate != null) endDate = latestDate
+                val effectiveStartDate = if (startDate.isNotEmpty()) startDate else earliestDate
+                val effectiveEndDate = if (endDate.isNotEmpty()) endDate else latestDate
 
-                // Step 3: Process receipts and filter by category and date range
+                val start = sdf.parse(effectiveStartDate)
+                val end = sdf.parse(effectiveEndDate)
+
                 for (document in result.documents) {
                     val id = document.id
                     val category = document.getString("category") ?: "Other"
                     val amount = document.get("total")?.toString()?.toDoubleOrNull() ?: 0.0
-                    val date = document.getString("date") ?: "Unknown"
+                    val date = document.getString("date") ?: continue
 
                     val receiptDate = sdf.parse(date)
-                    val start = sdf.parse(startDate)
-                    val end = sdf.parse(endDate)
 
-                    // Apply category and date range filter
-                    if (!filterByCategory || (category == selectedCategory)) {
-                        if (receiptDate != null && receiptDate in start..end) {
+                    if (receiptDate != null && receiptDate in start..end) {
+                        if (!filterByCategory || (category == selectedCategory)) {
                             tempList.add(mapOf("id" to id, "category" to category, "amount" to amount, "date" to date))
                             categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + amount
                             total += amount
@@ -902,7 +899,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                 }
                 totalSpending = total
                 isLoading = false
-                fetchBudget() // Fetch budget after calculating total spending
+                fetchBudget()
             }
             .addOnFailureListener {
                 showToast("Error fetching data.")
@@ -918,7 +915,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             .delete()
             .addOnSuccessListener {
                 showToast("Receipt deleted successfully")
-                fetchData() // Refresh the data
+                fetchData()
             }
             .addOnFailureListener {
                 showToast("Failed to delete receipt.")
@@ -979,16 +976,14 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Start Date: ", fontWeight = FontWeight.Medium)
-                                Text(startDate.ifEmpty { "Pick Start Date" })
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(if (startDate.isEmpty()) "Select Start Date" else startDate)
                                 Button(onClick = { showDatePicker { startDate = it } }) {
                                     Text("Pick Start Date")
                                 }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("End Date: ", fontWeight = FontWeight.Medium)
-                                Text(endDate.ifEmpty { "Pick End Date" })
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(if (endDate.isEmpty()) "Select End Date" else endDate)
                                 Button(onClick = { showDatePicker { endDate = it } }) {
                                     Text("Pick End Date")
                                 }
@@ -997,38 +992,42 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
 
                             Button(
                                 onClick = {
-                                    // Step 1: Automatically set last 30 days if only category is selected
-                                    if (startDate.isEmpty() && endDate.isEmpty() && selectedCategory != "Select a Category") {
-                                        val today = calendar.time
-                                        calendar.add(Calendar.DAY_OF_YEAR, -30)
-                                        val last30Days = calendar.time
+                                    firestore.collection("users")
+                                        .document(userId ?: "")
+                                        .collection("receipts")
+                                        .get()
+                                        .addOnSuccessListener { result ->
+                                            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                            val today = Calendar.getInstance()
 
-                                        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                                        startDate = sdf.format(last30Days)
-                                        endDate = sdf.format(today)
-                                    }
+                                            val allDates = result.documents.mapNotNull { it.getString("date") }
+                                            val earliestDate = allDates.minOrNull() ?: "1970-01-01"
+                                            val latestDate = allDates.maxOrNull() ?: sdf.format(today.time)
 
-                                    // Step 2: Determine the filter logic
-                                    val filterCategory = if (selectedCategory == "Select a Category") "" else selectedCategory
-                                    if (startDate.isNotEmpty() || endDate.isNotEmpty()) {
-                                        // Fetch data filtered by dates (with or without category)
-                                        fetchData(filterByCategory = filterCategory.isNotEmpty())
-                                    } else if (filterCategory.isNotEmpty()) {
-                                        // Fetch data filtered by category only
-                                        fetchData(filterByCategory = true)
-                                    }
+                                            if (startDate.isEmpty()) startDate = earliestDate
+                                            if (endDate.isEmpty()) endDate = latestDate
 
-                                    // Step 3: Reset filters to default values
-                                    selectedCategory = "Select a Category"
-                                    startDate = ""
-                                    endDate = ""
+                                            if (selectedCategory.isNotEmpty() && startDate.isEmpty() && endDate.isEmpty()) {
+                                                val calendar = Calendar.getInstance()
+                                                calendar.add(Calendar.DAY_OF_YEAR, -30)
+                                                startDate = sdf.format(calendar.time)
+                                                endDate = sdf.format(today.time)
+                                            }
+
+                                            fetchData(filterByCategory = selectedCategory.isNotEmpty())
+                                        }
+                                        .addOnFailureListener {
+                                            showToast("Failed to fetch data.")
+                                        }
                                 },
-                                enabled = selectedCategory != "Select a Category" || startDate.isNotEmpty() || endDate.isNotEmpty(),
+                                enabled = selectedCategory.isNotEmpty() || startDate.isNotEmpty() || endDate.isNotEmpty(),
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
                             ) {
                                 Text("Apply Filters", color = Color.White)
                             }
+
+
 
                         }
                     }

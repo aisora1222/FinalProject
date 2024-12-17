@@ -74,6 +74,20 @@ import com.google.firebase.firestore.SetOptions
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import android.app.DatePickerDialog
+import co.yml.charts.ui.linechart.LineChart
+import co.yml.charts.common.model.Point
+import co.yml.charts.axis.AxisData
+import co.yml.charts.ui.linechart.LineChart
+import co.yml.charts.ui.linechart.model.Line
+import co.yml.charts.ui.linechart.model.LineChartData
+import co.yml.charts.ui.linechart.model.LinePlotData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+
 
 // Kotlin coroutine
 import kotlinx.coroutines.delay
@@ -746,106 +760,220 @@ fun NavigationGraph(
  */
 @Composable
 fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
-    // Firestore instance to fetch receipt data
     val firestore = FirebaseFirestore.getInstance()
-
-    // Get the currently logged-in user's ID
     val userId = FirebaseAuth.getInstance().currentUser?.uid
 
-    // State variables to hold pie chart data and loading status
+    // Chart Data
     var pieChartData by remember { mutableStateOf<List<PieChartData.Slice>>(emptyList()) }
+    var lineChartData by remember { mutableStateOf<LineChartData?>(null) }
+
+    // UI States
     var isLoading by remember { mutableStateOf(true) }
+    var totalSpending by remember { mutableStateOf(0.0) }
+    var chartType by remember { mutableStateOf("PIE") } // Default to PIE chart
 
-    // Fetch receipts data from Firebase Firestore when the composable is launched
-    LaunchedEffect(Unit) {
-        if (userId != null) {
-            firestore.collection("users")
-                .document(userId) // Access the user's document using their ID
-                .collection("receipts") // Access the "receipts" sub-collection
-                .get() // Fetch all documents in the "receipts" collection
-                .addOnSuccessListener { result ->
-                    // Map to store category-wise spending totals
-                    val categoryMap = mutableMapOf<String, Double>()
+    // Filters
+    var showFilters by remember { mutableStateOf(false) }
+    var selectedCategory by remember { mutableStateOf("") }
+    var startDate by remember { mutableStateOf("") }
+    var endDate by remember { mutableStateOf("") }
 
-                    // Process each document in the result
-                    for (document in result.documents) {
-                        val category = document.getString("category") ?: "Other" // Default category
-                        val total = document.get("total")?.toString()?.toDoubleOrNull() ?: 0.0
-                        categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + total
-                    }
+    val context = LocalContext.current
+    val calendar = Calendar.getInstance()
 
-                    // Prepare pie chart data from the aggregated category totals
-                    pieChartData = categoryMap.map { (category, amount) ->
-                        PieChartData.Slice(
-                            label = category,
-                            value = amount.toFloat(),
-                            color = randomColor() // Assigns a random color for each slice
-                        )
-                    }
-                    isLoading = false // Update loading state
-                }
-                .addOnFailureListener {
-                    // Handle Firestore fetch errors
-                    isLoading = false
-                    println("Error fetching receipts: ${it.message}")
-                }
-        }
+    // Helper: Show Toast
+    fun showToast(message: String) {
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
-    // UI layout
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp), // Adds padding around the content
-        contentAlignment = Alignment.Center // Centers the content in the box
-    ) {
-        Column(
-            verticalArrangement = Arrangement.Center, // Aligns content vertically in the center
-            horizontalAlignment = Alignment.CenterHorizontally, // Centers content horizontally
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // Greeting message with user's email
-            Text(
-                text = "Home Screen",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+    // Date Picker
+    fun showDatePicker(onDateSelected: (String) -> Unit) {
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val formattedDate = String.format("%04d-%02d-%02d", year, month + 1, day)
+                onDateSelected(formattedDate)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
 
-            // Title for the pie chart
-            Text(
-                text = "Your Spending by Category:",
-                fontSize = 18.sp,
-                modifier = Modifier.padding(bottom = 32.dp)
-            )
+    // Fetch Filtered Data
+    fun fetchFilteredData() {
+        if (selectedCategory.isEmpty()) {
+            showToast("Category is required.")
+            return
+        }
 
-            // Show a loading indicator while data is being fetched
-            if (isLoading) {
-                CircularProgressIndicator()
-            } else {
-                // If data is available, display the pie chart
-                if (pieChartData.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .size(350.dp) // Sets a fixed size for the chart
-                            .padding(8.dp)
-                            .align(Alignment.CenterHorizontally)
-                    ) {
-                        BudgetPieChart(pieChartData) // Custom composable to render the pie chart
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        if (startDate.isEmpty() && endDate.isEmpty()) {
+            val today = sdf.format(calendar.time)
+            calendar.add(Calendar.MONTH, -1)
+            startDate = sdf.format(calendar.time)
+            endDate = today
+        }
+
+        isLoading = true
+        println("Fetching data for category: $selectedCategory between $startDate and $endDate")
+
+        firestore.collection("users")
+            .document(userId ?: "")
+            .collection("receipts")
+            .get()
+            .addOnSuccessListener { result ->
+                println("Total documents fetched: ${result.size()}")
+
+                val linePoints = mutableListOf<Pair<String, Float>>()
+                val categoryMap = mutableMapOf<String, Double>()
+                var total = 0.0
+
+                for (document in result.documents) {
+                    val category = document.getString("category") ?: "Other"
+                    val date = document.getString("date") ?: ""
+                    val amount = document.getDouble("total") ?: 0.0
+
+                    println("Document: category=$category, date=$date, total=$amount")
+
+                    if (date >= startDate && date <= endDate) {
+                        if (category == selectedCategory) {
+                            linePoints.add(Pair(date, amount.toFloat()))
+                        }
+                        categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + amount
+                        total += amount
+                    }
+                }
+
+                println("LinePoints: $linePoints")
+                println("CategoryMap: $categoryMap")
+
+                totalSpending = total
+
+                if (linePoints.isNotEmpty()) {
+                    chartType = "LINE"
+                    println("Chart Type: LINE")
+                    val sortedPoints = linePoints.sortedBy { it.first }
+                    val lineDataPoints = sortedPoints.mapIndexed { index, (_, value) ->
+                        Point(index.toFloat(), value)
+                    }
+
+                    lineChartData = LineChartData(
+                        linePlotData = LinePlotData(
+                            lines = listOf(Line(dataPoints = lineDataPoints))
+                        )
+                    )
+                } else if (categoryMap.isNotEmpty()) {
+                    chartType = "PIE"
+                    println("Chart Type: PIE")
+                    pieChartData = categoryMap.map { (k, v) ->
+                        PieChartData.Slice(k, v.toFloat(), randomColor())
                     }
                 } else {
-                    // Message displayed when no data is available
-                    Text("No data available.")
+                    chartType = "EMPTY"
+                    println("Chart Type: EMPTY")
+                }
+
+                isLoading = false
+            }
+            .addOnFailureListener { exception ->
+                println("Error fetching data: ${exception.message}")
+                showToast("Failed to fetch data.")
+                isLoading = false
+            }
+    }
+
+    // Scaffold Layout
+    Scaffold(topBar = { FixedTopBar(userEmail) }) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+            // Filter Button
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Button(onClick = { showFilters = !showFilters }) {
+                    Text(if (showFilters) "Hide Filters" else "Filter")
                 }
             }
 
-            // Spacer to add vertical space before the sign-out button
-            Spacer(modifier = Modifier.height(32.dp))
-            
+            // Filters
+            if (showFilters) {
+                Column {
+                    Text("Select Category:")
+                    SimpleDropdownMenu(
+                        items = listOf("Job Supplies", "Grocery", "Utilities", "Rent", "Entertainment"),
+                        selectedItem = selectedCategory,
+                        onItemSelected = { selectedCategory = it }
+                    )
+
+                    Row {
+                        Text("Start Date: $startDate")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(onClick = { showDatePicker { startDate = it } }) { Text("Pick Start Date") }
+                    }
+
+                    Row {
+                        Text("End Date: $endDate")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(onClick = { showDatePicker { endDate = it } }) { Text("Pick End Date") }
+                    }
+
+                    Button(onClick = { fetchFilteredData() }) {
+                        Text("Apply")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Total Spending
+            Text("Total Spending: $${"%.2f".format(totalSpending)}", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Charts
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else {
+                println("Chart Type: $chartType")
+                println("PieChartData Size: ${pieChartData.size}")
+                println("LineChartData Lines: ${lineChartData?.linePlotData?.lines?.size ?: 0}")
+
+                when (chartType) {
+                    "LINE" -> {
+                        println("Rendering Line Chart...")
+                        lineChartData?.let {
+                            LineChart(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(300.dp),
+                                lineChartData = it
+                            )
+                        }
+                    }
+                    "PIE" -> {
+                        println("Rendering Pie Chart...")
+                        if (pieChartData.isNotEmpty()) {
+                            BudgetPieChart(pieChartData)
+                        } else {
+                            Text("No data available.", color = Color.Gray)
+                        }
+                    }
+                    "EMPTY" -> {
+                        println("Rendering EMPTY State...")
+                        Text("No data available for the selected filters.", color = Color.Gray)
+                    }
+                    else -> {
+                        println("Unexpected Chart Type: $chartType")
+                        Text("Unexpected chart type.", color = Color.Red)
+                    }
+                }
+            }
         }
     }
 }
-
 
 
 /**
@@ -859,15 +987,11 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
  * @return Color A randomly generated color with RGBA components.
  */
 fun randomColor(): Color {
-    // Create a Random instance to generate random float values
-    val random = java.util.Random()
-
-    // Return a Color object with randomly generated RGB values
     return Color(
-        red = random.nextFloat(),    // Generates a random float value for red (0.0 to 1.0)
-        green = random.nextFloat(),  // Generates a random float value for green (0.0 to 1.0)
-        blue = random.nextFloat(),   // Generates a random float value for blue (0.0 to 1.0)
-        alpha = 1f                   // Sets the alpha to 1f (fully opaque)
+        red = (0..255).random() / 255f,
+        green = (0..255).random() / 255f,
+        blue = (0..255).random() / 255f,
+        alpha = 1f
     )
 }
 

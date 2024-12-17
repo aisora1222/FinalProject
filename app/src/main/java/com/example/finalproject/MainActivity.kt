@@ -1336,8 +1336,7 @@ fun saveBudgetToFirebase(budget: String, onComplete: (Boolean) -> Unit) {
     if (userId != null) {
         val budgetData = mapOf("budget" to budget)
 
-        firestore.collection("users")
-            .document(userId)
+        firestore.collection("users").document(userId).collection("userData").document("budget")
             .set(budgetData, SetOptions.merge()) // Merge to avoid overwriting other fields
             .addOnSuccessListener {
                 println("Budget saved successfully!")
@@ -1366,7 +1365,7 @@ fun loadBudgetFromFirebase(onLoaded: (String) -> Unit) {
             }
             .addOnFailureListener {
                 println("Error loading budget: ${it.message}")
-                onLoaded("") 
+                onLoaded("")
             }
     }
 }

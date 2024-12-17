@@ -69,6 +69,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.google.firebase.firestore.SetOptions
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -91,9 +92,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         // Set the content view using Jetpack Compose
         setContent {
-            FinalProjectTheme {
+            var isDarkTheme by rememberSaveable { mutableStateOf(false) }
+            FinalProjectTheme(darkTheme = isDarkTheme) {
                 // Load the Login Screen as the starting UI
-                LoginScreen()
+                LoginScreen(
+                    isDarkTheme = isDarkTheme,
+                    onThemeChange = { isDarkTheme = it }
+                )
             }
         }
     }
@@ -460,7 +465,7 @@ private fun createTempFileFromUri(uri: Uri, context: Context): File {
  */
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter", "UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun MainAppNav(userEmail: String, onSignOut: () -> Unit) {
+fun MainAppNav(userEmail: String, onSignOut: () -> Unit, isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit) {
     // Creates a NavController to manage navigation between different screens
     val navController = rememberNavController()
 
@@ -501,7 +506,9 @@ fun MainAppNav(userEmail: String, onSignOut: () -> Unit) {
                 userEmail = userEmail,               // User email passed to screens
                 onSignOut = onSignOut,               // Sign-out callback
                 budget = budget,                     // Current budget value
-                onBudgetChange = { budget = it }     // Callback to update the budget state
+                onBudgetChange = { budget = it },     // Callback to update the budget state
+                isDarkTheme = isDarkTheme,
+                onThemeChange = onThemeChange
             )
         }
     }
@@ -683,7 +690,9 @@ fun NavigationGraph(
     userEmail: String,                // Email of the logged-in user
     onSignOut: () -> Unit,            // Callback for user sign-out
     budget: String,                   // Current budget value
-    onBudgetChange: (String) -> Unit  // Callback to update the budget
+    onBudgetChange: (String) -> Unit,  // Callback to update the budget
+    isDarkTheme: Boolean,
+    onThemeChange: (Boolean) -> Unit
 ) {
     // NavHost: Defines the navigation graph and sets the starting destination
     NavHost(
@@ -702,7 +711,7 @@ fun NavigationGraph(
 
         // Settings screen destination
         composable("settings") {
-            SettingsScreen(userEmail, onSignOut, navController) // Pass userEmail, onSignOut, and NavController
+            SettingsScreen(userEmail, onSignOut, navController, isDarkTheme, onThemeChange) // Pass userEmail, onSignOut, and NavController
         }
     }
 }
@@ -1790,7 +1799,9 @@ fun DropdownMenuField(
 fun SettingsScreen(
     userEmail: String,               // Logged-in user's email
     onSignOut: () -> Unit,           // Callback for user sign-out
-    navController: NavHostController // Navigation controller
+    navController: NavHostController, // Navigation controller
+    isDarkTheme: Boolean,
+    onThemeChange: (Boolean) -> Unit
 ) {
     // State to manage the budget input
     var budget by remember { mutableStateOf("") }
@@ -1837,7 +1848,8 @@ fun SettingsScreen(
                 }
                 // Placeholder for theme settings card
                 item {
-                    ThemeSettingsCard()
+                    ThemeSettingsCard(isDarkThemeEnabled = isDarkTheme,
+                        onThemeChange = onThemeChange)
                 }
                 // Display logout card
                 item {
@@ -2119,10 +2131,10 @@ fun loadBudgetFromFirebase(onLoaded: (String) -> Unit) {
  * Note: This implementation only updates local state and does not apply global theme changes.
  */
 @Composable
-fun ThemeSettingsCard() {
-    // Local state to track whether the dark theme is enabled
-    var isDarkThemeEnabled by remember { mutableStateOf(false) }
-
+fun ThemeSettingsCard(
+    isDarkThemeEnabled: Boolean,
+    onThemeChange: (Boolean) -> Unit
+) {
     // Card: A styled container with rounded corners and elevation
     Card(
         modifier = Modifier.fillMaxWidth(),                   // Makes the card span the full width
@@ -2157,7 +2169,7 @@ fun ThemeSettingsCard() {
             // Switch: Toggles the dark theme on/off
             Switch(
                 checked = isDarkThemeEnabled,               // Reflects the current state of the switch
-                onCheckedChange = { isDarkThemeEnabled = it } // Updates the state when the switch is toggled
+                onCheckedChange = { onThemeChange(it) } // Updates the state when the switch is toggled
             )
         }
     }
@@ -2234,7 +2246,7 @@ fun LogoutCard(onSignOut: () -> Unit) {
  * @note This function uses Firebase Authentication to manage user authentication state.
  */
 @Composable
-fun LoginScreen() {
+fun LoginScreen(isDarkTheme: Boolean, onThemeChange: (Boolean) -> Unit) {
     // Firebase Authentication instance
     val auth = FirebaseAuth.getInstance()
 
@@ -2256,7 +2268,10 @@ fun LoginScreen() {
                 // Sign out the user and reset the state
                 auth.signOut()
                 user = null
-            }
+
+            },
+            isDarkTheme = isDarkTheme,
+            onThemeChange = onThemeChange
         )
 
         /*

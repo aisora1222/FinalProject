@@ -874,7 +874,11 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                 for (document in result.documents) {
                     val category = document.getString("category") ?: "Other"
                     val date = document.getString("date") ?: ""
-                    val amount = document.getDouble("total") ?: 0.0
+                    val amount = when (val totalValue = document.get("total")) {
+                        is Number -> totalValue.toDouble()
+                        is String -> totalValue.toDoubleOrNull() ?: 0.0
+                        else -> 0.0
+                    }
 
                     println("Document: category=$category, date=$date, total=$amount")
 
@@ -924,6 +928,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                 isLoading = false
             }
     }
+
 
     // Scaffold Layout
     Scaffold(topBar = { FixedTopBar(userEmail) }) { padding ->

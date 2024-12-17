@@ -70,6 +70,8 @@ import com.example.finalproject.ui.theme.FinalProjectTheme
 import com.example.finalproject.utils.VeryfiApiClient
 import com.google.gson.Gson
 import android.app.DatePickerDialog
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -322,88 +324,140 @@ fun ReceiptCaptureScreenPreview() {
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter", "UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainAppNav(userEmail: String, onSignOut: () -> Unit) {
+    // Creates a NavController to manage navigation between screens
     val navController = rememberNavController()
-    var isExpanded by remember { mutableStateOf(false) }
 
+    // Tracks whether the bottom navigation bar is expanded or minimized
+    var isExpanded by remember { mutableStateOf(true) }
 
+    // Scaffold to define the app structure with top bar, bottom bar, and main content
     Scaffold(
+        // Fixed top bar that displays the user greeting
         topBar = { FixedTopBar(userEmail) },
+
+        // Conditionally displays the bottom navigation bar or the expand button
         bottomBar = {
-            ExpandableBottomNavigationBar(
-                navController = navController,
-                userEmail = userEmail,
-                onSignOut = onSignOut
-            )
+            if (isExpanded) {
+                // Expanded navigation bar with tabs
+                ExpandableBottomNavigationBar(
+                    navController = navController,
+                    onMinimize = { isExpanded = false } // Callback to minimize the bar
+                )
+            } else {
+                // Small button to expand the navigation bar
+                ExpandButton(onExpand = { isExpanded = true })
+            }
         }
-    ) {
-        NavigationGraph(navController, userEmail, onSignOut)
+    ) { innerPadding ->
+        // Box to adjust the content padding based on whether the bottom bar is visible
+        Box(
+            modifier = Modifier.padding(
+                bottom = if (isExpanded) innerPadding.calculateBottomPadding() else 0.dp
+            )
+        ) {
+            // Displays the main navigation graph for navigating between screens
+            NavigationGraph(navController, userEmail, onSignOut)
+        }
     }
 }
+
 @Composable
 fun ExpandableBottomNavigationBar(
-    navController: NavHostController,
-    userEmail: String,
-    onSignOut: () -> Unit
+    navController: NavHostController, // NavController to handle navigation
+    onMinimize: () -> Unit // Callback to minimize the bottom navigation bar
 ) {
+    // Surface provides a material container for the bottom navigation bar
     Surface {
         Column {
+            // Row for the navigation tabs and the minimize button
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Magenta)
-                    .padding(vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxWidth() // Takes the full width of the screen
+                    .background(Color.Magenta) // Background color of the bottom bar
+                    .padding(vertical = 10.dp), // Adds vertical padding
+                horizontalArrangement = Arrangement.SpaceEvenly, // Evenly spaces the navigation tabs
+                verticalAlignment = Alignment.CenterVertically // Aligns content vertically at the center
             ) {
-                // Navigation Tabs
+                // Individual navigation tabs
                 BottomNavigationTab("Main", navController, "main")
                 BottomNavigationTab("New", navController, "new")
                 BottomNavigationTab("Settings", navController, "settings")
+
+                // Icon to minimize the bottom navigation bar
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown, // Down arrow icon
+                    contentDescription = "Minimize", // Accessibility description
+                    tint = Color.Green, // Sets the icon color to green
+                    modifier = Modifier
+                        .size(36.dp) // Size of the icon
+                        .clickable { onMinimize() } // Triggers the minimize callback when clicked
+                )
             }
         }
     }
 }
 
+@Composable
+fun ExpandButton(onExpand: () -> Unit) {
+    // Small button displayed in the bottom-right corner to expand the navigation bar
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(10.dp), // Adds padding to position the button
+        horizontalArrangement = Arrangement.End // Aligns the button to the right
+    ) {
+        // Icon to expand the bottom navigation bar
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowUp, // Up arrow icon
+            contentDescription = "Expand", // Accessibility description
+            tint = Color.Green, // Sets the icon color to green
+            modifier = Modifier
+                .size(36.dp) // Size of the icon
+                .clickable { onExpand() } // Triggers the expand callback when clicked
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FixedTopBar(userEmail: String) {
+    // TopAppBar to display a fixed header with a greeting message
     TopAppBar(
         title = {
+            // Text displaying the user greeting
             Text(
                 text = "Hello, $userEmail",
-                color = Color.White,
+                color = Color.White, // Sets text color to white
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp)
+                    .padding(vertical = 10.dp) // Adds vertical padding to the text
             )
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Magenta
+            containerColor = Color.Magenta // Background color of the top bar
         ),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth() // Takes the full width of the screen
     )
 }
 
-
 @Composable
 fun BottomNavigationTab(label: String, navController: NavHostController, route: String) {
+    // Displays a clickable text tab for navigation
     Text(
-        text = label, // Fixed missing text
+        text = label, // Tab label
         modifier = Modifier
-            .padding(20.dp)
-            .clickable { navController.navigate(route) } // Fixed clickable
+            .padding(20.dp) // Adds padding around the label
+            .clickable { navController.navigate(route) } // Navigates to the specified route on click
     )
 }
 
 @Composable
 fun NavigationGraph(navController: NavHostController, userEmail: String, onSignOut: () -> Unit) {
-
+    // Defines the navigation graph for the app
     NavHost(navController, startDestination = "new") {
-        // Ensures onSignOut is consistent on the Main screen, will add support for the other two soon
-        composable("main") { MainScreen(userEmail, onSignOut) }
-        composable("new") { NewScreen() }
-        composable("settings") { SettingsScreen() }
+        composable("main") { MainScreen(userEmail, onSignOut) } // Main screen
+        composable("new") { NewScreen() } // New screen
+        composable("settings") { SettingsScreen(userEmail) } // Settings screen
     }
 }
 //Main Screen ---------------------------------------------------------------------------------
@@ -943,17 +997,7 @@ fun ManualDataInputScreen() {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Magenta)
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Main | New | Settings", color = Color.White, fontSize = 16.sp)
-            }
-        }
+
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -1129,24 +1173,33 @@ fun DropdownMenuField(
 data class Setting(val title: String, val description: String)
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(userEmail: String) {
     // Generate 100 fake settings
     val settingsList = List(100) { index ->
         Setting(title = "Setting ${index + 1}", description = "Description for Setting ${index + 1}")
     }
 
-
-
-    // LazyColumn to display settings
-    LazyColumn(
-        modifier = Modifier
+    Scaffold(
+        topBar = { FixedTopBar(userEmail) } 
+    ) { innerPadding ->
+        Column( modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        items(settingsList) { setting ->
-            SettingItem(title = setting.title, description = setting.description)
+        ){
+            Spacer(modifier = Modifier.height(10.dp))
+
+            LazyColumn(
+                contentPadding = innerPadding,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(settingsList) { setting ->
+                    SettingItem(title = setting.title, description = setting.description)
+                }
+            }
         }
+
     }
 
 }

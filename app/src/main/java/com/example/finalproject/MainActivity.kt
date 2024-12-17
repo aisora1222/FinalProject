@@ -88,6 +88,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             FinalProjectTheme {
                 LoginScreen()
+//                Scaffold(
+//                    modifier = Modifier.fillMaxSize()
+//                ) { innerPadding ->
+//                    ReceiptCaptureScreen(modifier = Modifier.padding(innerPadding))
+//                }
             }
         }
     }
@@ -276,7 +281,6 @@ private fun uploadToVeryfi(
         onError(e)
     }
 }
-
 private fun saveFormattedDataToFirebase(data: Map<String, Any>) {
     val firestore = FirebaseFirestore.getInstance()
     val userId = FirebaseAuth.getInstance().currentUser?.uid
@@ -319,38 +323,28 @@ fun ReceiptCaptureScreenPreview() {
 //Brandons Code
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter", "UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-//This is the main function called after the login screen
 fun MainAppNav(userEmail: String, onSignOut: () -> Unit) {
-    // Establishes a navigation controller to manage screen navigation
     val navController = rememberNavController()
-
-    // Stores the state of the navigation bar expansion (expanded or minimized)
     var isExpanded by remember { mutableStateOf(true) } // Track bottom bar state
 
     Scaffold(
-        // Displays the top app bar with a user greeting
         topBar = { FixedTopBar(userEmail) },
-
-        // Displays the bottom navigation bar, conditionally showing it or an expand button
         bottomBar = {
-            // Show the expandable bottom navigation bar if expanded, otherwise show the expand button
             if (isExpanded) {
                 ExpandableBottomNavigationBar(
                     navController = navController,
-                    onMinimize = { isExpanded = false } // Callback to minimize the navigation bar
+                    onMinimize = { isExpanded = false }
                 )
             } else {
-                ExpandButton(onExpand = { isExpanded = true }) // Callback to expand the navigation bar
+                ExpandButton(onExpand = { isExpanded = true })
             }
         }
     ) { innerPadding ->
-        // Adds dynamic bottom padding based on the expansion state of the bottom bar
         Box(
             modifier = Modifier.padding(
                 bottom = if (isExpanded) innerPadding.calculateBottomPadding() else 0.dp
             )
         ) {
-            // Manages the navigation between different composable screens
             NavigationGraph(navController, userEmail, onSignOut)
         }
     }
@@ -358,110 +352,95 @@ fun MainAppNav(userEmail: String, onSignOut: () -> Unit) {
 
 @Composable
 fun ExpandableBottomNavigationBar(
-    navController: NavHostController, // Navigation controller to manage navigation between screens
-    onMinimize: () -> Unit // Callback function to minimize the navigation bar
+    navController: NavHostController,
+    onMinimize: () -> Unit
 ) {
-    // Surface to provide a material container for the navigation bar
     Surface {
         Column {
-            // Row for displaying navigation tabs and the minimize button
             Row(
                 modifier = Modifier
-                    .fillMaxWidth() // Makes the row take the full width of the screen
-                    .background(Color.Magenta) // Sets the background color of the navigation bar
-                    .padding(vertical = 10.dp), // Adds vertical padding to the row
-                horizontalArrangement = Arrangement.SpaceEvenly, // Evenly spaces elements horizontally
-                verticalAlignment = Alignment.CenterVertically // Aligns elements vertically at the center
+                    .fillMaxWidth()
+                    .background(Color.Magenta)
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 // Navigation Tabs
-                BottomNavigationTab("Main", navController, "main") // Tab for the "Main" screen
-                BottomNavigationTab("New", navController, "new")   // Tab for the "New" screen
-                BottomNavigationTab("Settings", navController, "settings") // Tab for the "Settings" screen
+                BottomNavigationTab("Main", navController, "main")
+                BottomNavigationTab("New", navController, "new")
+                BottomNavigationTab("Settings", navController, "settings")
 
-                // Minimize Button
                 Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown, // Downward arrow icon for minimize action
-                    contentDescription = "Minimize", // Content description for accessibility
-                    tint = Color.Green, // Sets the color of the icon to green
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Minimize",
+                    tint = Color.Green,
                     modifier = Modifier
-                        .size(36.dp) // Sets the size of the icon
-                        .clickable { onMinimize() } // Makes the icon clickable and triggers the minimize callback
+                        .size(36.dp)
+                        .clickable { onMinimize() }
                 )
             }
         }
     }
 }
 
-// A composable function that displays an expandable button to restore the bottom navigation bar
 @Composable
 fun ExpandButton(onExpand: () -> Unit) {
-    // Places the expand button at the bottom-right corner
+    // Show a small button in the bottom-right corner to expand
     Row(
         modifier = Modifier
-            .fillMaxWidth() // Ensures the Row takes the full width
-            .padding(10.dp), // Adds padding around the Row
-        horizontalArrangement = Arrangement.End // Aligns content to the end (right side)
+            .fillMaxWidth()
+            .padding(10.dp),
+        horizontalArrangement = Arrangement.End
     ) {
-        // Icon representing the "expand" button
         Icon(
-            imageVector = Icons.Default.KeyboardArrowUp, // Upward arrow icon
-            contentDescription = "Expand", // Accessibility description for screen readers
-            tint = Color.Green, // Sets the icon color to green
+            imageVector = Icons.Default.KeyboardArrowUp,
+            contentDescription = "Expand",
+            tint = Color.Green,
             modifier = Modifier
-                .size(36.dp) // Sets the size of the icon
-                .clickable { onExpand() } // Makes the icon clickable and triggers the expand callback
+                .size(36.dp)
+                .clickable { onExpand() }
         )
     }
 }
 
-// A composable function that creates a fixed top bar with a greeting message
-@OptIn(ExperimentalMaterial3Api::class) // Marks usage of an experimental API
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FixedTopBar(userEmail: String) {
     TopAppBar(
-        // Displays a greeting message with the user's email
         title = {
             Text(
-                text = "Hello, $userEmail", // Greeting text
-                color = Color.White, // Sets the text color to white
+                text = "Hello, $userEmail",
+                color = Color.White,
                 modifier = Modifier
-                    .fillMaxWidth() // Ensures the text takes the full width
-                    .padding(vertical = 10.dp) // Adds vertical padding around the text
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp)
             )
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Magenta // Sets the background color of the top bar to magenta
+            containerColor = Color.Magenta
         ),
-        modifier = Modifier.fillMaxWidth() // Makes the top bar span the full width of the screen
+        modifier = Modifier.fillMaxWidth()
     )
 }
 
-// A composable function that displays a clickable navigation tab
+
 @Composable
 fun BottomNavigationTab(label: String, navController: NavHostController, route: String) {
     Text(
-        text = label, // Text label for the navigation tab
+        text = label,
         modifier = Modifier
-            .padding(20.dp) // Adds padding around the text
-            .clickable { navController.navigate(route) } // Navigates to the specified route when clicked
+            .padding(20.dp)
+            .clickable { navController.navigate(route) }
     )
 }
 
-// A composable function that sets up a navigation graph for managing different screens
 @Composable
 fun NavigationGraph(navController: NavHostController, userEmail: String, onSignOut: () -> Unit) {
-    NavHost(
-        navController, // Navigation controller to manage navigation between screens
-        startDestination = "new" // Sets the default starting screen to "new"
-    ) {
-        // Composable screen for the "Main" route
+    NavHost(navController, startDestination = "new") {
         composable("main") { MainScreen(userEmail, onSignOut) }
-
-        // Composable screen for the "New" route
         composable("new") { NewScreen() }
-
-        // Composable screen for the "Settings" route
-        composable("settings") { SettingsScreen() }
+        composable("settings") { SettingsScreen(userEmail) }
     }
 }
 //Main Screen ---------------------------------------------------------------------------------
@@ -1129,24 +1108,33 @@ fun ManualDataInputScreen() {
 data class Setting(val title: String, val description: String)
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(userEmail: String) {
     // Generate 100 fake settings
     val settingsList = List(100) { index ->
         Setting(title = "Setting ${index + 1}", description = "Description for Setting ${index + 1}")
     }
 
-
-
-    // LazyColumn to display settings
-    LazyColumn(
-        modifier = Modifier
+    Scaffold(
+        topBar = { FixedTopBar(userEmail) } 
+    ) { innerPadding ->
+        Column( modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        items(settingsList) { setting ->
-            SettingItem(title = setting.title, description = setting.description)
+        ){
+            Spacer(modifier = Modifier.height(10.dp))
+
+            LazyColumn(
+                contentPadding = innerPadding,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(settingsList) { setting ->
+                    SettingItem(title = setting.title, description = setting.description)
+                }
+            }
         }
+
     }
 
 }

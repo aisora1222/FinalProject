@@ -825,6 +825,19 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
+    fun showDatePicker(onDateSelected: (String) -> Unit) {
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val formattedDate = String.format("%04d-%02d-%02d", year, month + 1, day)
+                onDateSelected(formattedDate)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
     fun fetchDefaultData() {
         isLoading = true
         firestore.collection("users")
@@ -868,6 +881,11 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             calendar.add(Calendar.MONTH, -1)
             startDate = sdf.format(calendar.time)
             endDate = today
+        }
+
+        if (sdf.parse(endDate).time - sdf.parse(startDate).time > 365L * 24 * 60 * 60 * 1000) {
+            showToast("Date range cannot exceed 12 months.")
+            return
         }
 
         isLoading = true
@@ -941,11 +959,32 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
 
             if (showFilters) {
                 Column {
+                    Text("Select Category:")
                     SimpleDropdownMenu(
-                        items = listOf("Grocery", "Rent", "Utilities", "Entertainment"),
+                        items = listOf("Advertising & Marketing", "Automotive", "Bank Charges & Fees",
+                            "Legal & Professional Services", "Insurance", "Meals & Entertainment",
+                            "Office Supplies & Software", "Taxes & Licenses", "Travel",
+                            "Rent & Lease", "Repairs & Maintenance", "Payroll", "Utilities",
+                            "Job Supplies", "Grocery"),
                         selectedItem = selectedCategory,
                         onItemSelected = { selectedCategory = it }
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row {
+                        Text("Start Date: $startDate")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(onClick = { showDatePicker { startDate = it } }) {
+                            Text("Pick Start Date")
+                        }
+                    }
+                    Row {
+                        Text("End Date: $endDate")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(onClick = { showDatePicker { endDate = it } }) {
+                            Text("Pick End Date")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = { fetchFilteredData() }) {
                         Text("Apply")
                     }

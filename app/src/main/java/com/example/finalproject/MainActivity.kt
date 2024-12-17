@@ -1084,7 +1084,7 @@ fun BudgetPieChart(slices: List<PieChartData.Slice>) {
                 .size(200.dp)
                 .padding(8.dp)
                 .clip(CircleShape)
-                .background(Color.White, CircleShape),
+                .background(Color.Transparent, CircleShape),
             pieChartData = pieChartData,
             pieChartConfig = pieChartConfig
         )

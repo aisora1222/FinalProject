@@ -70,8 +70,11 @@ import com.example.finalproject.ui.theme.FinalProjectTheme
 import com.example.finalproject.utils.VeryfiApiClient
 import com.google.gson.Gson
 import android.app.DatePickerDialog
+import android.widget.Toast
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import com.google.firebase.firestore.SetOptions
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -331,6 +334,8 @@ fun MainAppNav(userEmail: String, onSignOut: () -> Unit) {
     // Tracks whether the bottom navigation bar is expanded or minimized
     var isExpanded by remember { mutableStateOf(true) }
 
+    var budget by remember { mutableStateOf("") }
+
     // Scaffold to define the app structure with top bar, bottom bar, and main content
     Scaffold(
         // Fixed top bar that displays the user greeting
@@ -357,7 +362,7 @@ fun MainAppNav(userEmail: String, onSignOut: () -> Unit) {
             )
         ) {
             // Displays the main navigation graph for navigating between screens
-            NavigationGraph(navController, userEmail, onSignOut)
+            NavigationGraph(navController, userEmail, onSignOut, budget, { budget = it })
         }
     }
 }
@@ -453,12 +458,13 @@ fun BottomNavigationTab(label: String, navController: NavHostController, route: 
 }
 
 @Composable
-fun NavigationGraph(navController: NavHostController, userEmail: String, onSignOut: () -> Unit) {
+fun NavigationGraph(navController: NavHostController, userEmail: String, onSignOut: () -> Unit, budget: String,
+                    onBudgetChange: (String) -> Unit) {
     // Defines the navigation graph for the app
     NavHost(navController, startDestination = "new") {
         composable("main") { MainScreen(userEmail, onSignOut) } // Main screen
         composable("new") { NewScreen() } // New screen
-        composable("settings") { SettingsScreen(userEmail, onSignOut) } // Settings screen
+        composable("settings") { SettingsScreen(userEmail, onSignOut, navController) } // Settings screen
     }
 }
 //Main Screen ---------------------------------------------------------------------------------
@@ -1194,33 +1200,65 @@ fun DropdownMenuField(
 //Settings Screen ---------------------------------------------------------------------------------
 //Ethan's Code
 @Composable
-fun SettingsScreen(userEmail: String, onSignOut: () -> Unit) {
+fun SettingsScreen(
+    userEmail: String,
+    onSignOut: () -> Unit,
+    navController: NavHostController
+) {
+    var budget by remember { mutableStateOf("") }
+    var showSaveSuccess by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        loadBudgetFromFirebase { loadedBudget ->
+            budget = loadedBudget
+        }
+    }
 
     Scaffold(
-        topBar = { FixedTopBar(userEmail) } 
+        topBar = { FixedTopBar(userEmail) }
     ) { innerPadding ->
-        Column( modifier = Modifier
-            .fillMaxSize()
-        ){
-            Spacer(modifier = Modifier.height(10.dp))
-
-            LazyColumn(
-                contentPadding = innerPadding,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                item { UserInformationCard(userEmail) }
-                item { CurrencySelectionCard() }
-                item { ThemeSettingsCard() }
-                item { LogoutCard(onSignOut) }
-
-                }
+        LazyColumn(
+            contentPadding = innerPadding,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            item { UserInformationCard(userEmail) }
+            item {
+                BudgetSelectionCard(
+                    budget = budget,
+                    onBudgetChange = { newBudget -> budget = newBudget },
+                    onSave = {
+                        saveBudgetToFirebase(budget) { success ->
+                            if (success) showSaveSuccess = true
+                        }
+                    }
+                )
             }
+            item { ThemeSettingsCard() }
+            item { LogoutCard(onSignOut) }
         }
 
+        // Show a success message after saving
+        if (showSaveSuccess) {
+            ToastMessage("Budget saved successfully!")
+            showSaveSuccess = false
+        }
+        else {
+            ToastMessage("Budget not saved")
+            showSaveSuccess = false
+        }
     }
+}
+
+@Composable
+fun ToastMessage(message: String) {
+    val context = LocalContext.current
+    LaunchedEffect(message) {
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+}
 
 
 @Composable
@@ -1239,11 +1277,7 @@ fun UserInformationCard(userEmail: String) {
 }
 
 @Composable
-fun CurrencySelectionCard() {
-    val currencies = listOf("USD", "EURO", "GBP")
-    var selectedCurrency by remember { mutableStateOf("USD") }
-    var expanded by remember { mutableStateOf(false) }
-
+fun BudgetSelectionCard(budget: String, onBudgetChange: (String) -> Unit, onSave: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
@@ -1256,40 +1290,84 @@ fun CurrencySelectionCard() {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Currency Selection",
+                text = "Budget Selection",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Choose your preferred currency.",
+                text = "Set your budget for expenses.",
                 color = Color.Gray
             )
 
-            // Dropdown Menu
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color.Gray, shape = RoundedCornerShape(8.dp))
-                    .clickable { expanded = true }
-                    .padding(16.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(text = selectedCurrency)
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    currencies.forEach { currency ->
-                        DropdownMenuItem(
-                            text = { Text(currency) },
-                            onClick = {
-                                selectedCurrency = currency
-                                expanded = false
-                            }
-                        )
-                    }
+                OutlinedTextField(
+                    value = budget,
+                    onValueChange = { newBudget ->
+                        if (newBudget.all { it.isDigit() }) {
+                            onBudgetChange(newBudget)
+                        }
+                    },
+                    label = { Text("Enter Budget") },
+                    placeholder = { Text("0") },
+                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f) // Input field takes most of the space
+                )
+
+                // Save button
+                Button(onClick = { onSave() }) {
+                    Text("Update Budget")
                 }
             }
         }
+    }
+}
+
+
+
+fun saveBudgetToFirebase(budget: String, onComplete: (Boolean) -> Unit) {
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+
+    if (userId != null) {
+        val budgetData = mapOf("budget" to budget)
+
+        firestore.collection("users")
+            .document(userId)
+            .set(budgetData, SetOptions.merge()) // Merge to avoid overwriting other fields
+            .addOnSuccessListener {
+                println("Budget saved successfully!")
+                onComplete(true)
+            }
+            .addOnFailureListener { e ->
+                println("Error saving budget: ${e.message}")
+                onComplete(false)
+            }
+    } else {
+        println("User not logged in")
+        onComplete(false)
+    }
+}
+
+
+fun loadBudgetFromFirebase(onLoaded: (String) -> Unit) {
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+
+    if (userId != null) {
+        firestore.collection("users").document(userId).get()
+            .addOnSuccessListener { document ->
+                val budget = document.getString("budget") ?: ""
+                onLoaded(budget)
+            }
+            .addOnFailureListener {
+                println("Error loading budget: ${it.message}")
+                onLoaded("") 
+            }
     }
 }
 

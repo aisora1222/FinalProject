@@ -1,7 +1,7 @@
 # FinalProject
 
 ## **Overview**
-The **FinalProject** is an Android budgeting application designed to help users manage their finances, capture receipts, and visualize expenses. It uses modern Android tools like Jetpack Compose, integrates Firebase services, and employs the Veryfi API for receipt OCR functionality.
+The **FinalProject** is an Android budgeting application that helps users manage their expenses, capture receipts, and track spending visually. Built using **Jetpack Compose**, it integrates **Firebase** for authentication and storage, and leverages the **Veryfi API** for receipt OCR processing.
 
 ---
 
@@ -30,92 +30,216 @@ The **FinalProject** is an Android budgeting application designed to help users 
 - Fixed top bar displaying personalized greetings.
 
 ### **5. Settings**
-- Manage app settings with a scrollable settings page. (Currently includes placeholders for future options.)
+- Manage app settings with a scrollable settings page.
 
 ---
 
 ## **Usage Instructions**
 
 ### **1. Setup**
-1. **Download the App**: Install the app on an Android device.
+1. **Download the App**: Install the app on an Android device from this repo.
 2. **Login/Register**: Use your email and password to create an account or log in.
 
-### **2. Features**
+### **2. Walkthrough**
 
-#### **Receipt Capture**
-1. Navigate to the **"New"** screen from the bottom navigation bar.
-2. Choose:
-   - **Take Photo**: Capture a receipt using the camera.
-   - **Select from Gallery**: Upload a receipt image.
-3. The app processes the image and extracts the receipt details.
+#### **Login/Register**
+- Use your email and password to sign up or log in securely.
 
-#### **Manual Input**
-1. Swipe right on the **"New"** screen to access manual input.
-2. Select a category, date, and add expense details (items, price, and tax).
-3. The app calculates totals automatically.
+---
 
-#### **Visualization**
-1. Navigate to the **"Main"** screen.
-2. View your budget breakdown through donut charts.
+#### **Capture Receipts**
+1. Go to the **"New"** screen using the bottom navigation bar.
+2. Choose one of the following options:
+   - **Take Photo**: Capture a new receipt using the device's camera.
+   - **Select from Gallery**: Upload an existing image of a receipt from your device.
+3. The app processes the image using OCR and extracts details such as:
+   - **Categories**
+   - **Date**
+   - **Total, Tax, and Subtotal**
+   - **Line Items**: Individual item names and prices.
 
-#### **Sign Out**
-- Use the "Sign Out" button on the **"Main"** screen to securely log out.
+---
+
+#### **Manual Expense Input**
+1. Swipe right on the **"New"** screen to access the manual input form.
+2. Enter the following details:
+   - **Category**: Select the category of the expense.
+   - **Date**: Pick the date of the transaction.
+   - **Item Details**: Input item names, prices, and tax amounts.
+3. The app calculates totals automatically and saves the data.
+
+---
+
+#### **View Spending**
+1. Navigate to the **"Main"** screen using the bottom navigation bar.
+2. The following information is displayed:
+   - **Donut Charts**: Visual breakdown of spending by category.
+   - **Budget Overview**: Visualize the total budget used and remaining balance.
+
+---
+
+#### **Settings**
+1. Navigate to the **"Settings"** screen.
+2. Perform the following actions:
+   - **Set Monthly Budget**: Input a desired monthly budget.
+   - **Toggle Theme**: Switch between light and dark mode.
+   - **Sign Out**: Log out of your account securely.
 
 ---
 
 ## **Technical Implementation**
 
 ### **Architecture**
-- **Jetpack Compose**: Used for modern, declarative UI design.
-- **Navigation**: Compose Navigation handles screen transitions.
+- **Jetpack Compose**: Modern declarative UI.
+- **Navigation Component**: Handles seamless navigation between screens.
 - **Firebase**:
-  - **Firestore**: Stores user data, including expenses and receipts.
-  - **Authentication**: Manages secure login and registration.
+   - **Authentication**: Manages user login.
+   - **Firestore**: Stores user data, receipts, and preferences.
 
 ### **Third-Party Libraries**
-- **Veryfi API**: Performs OCR on receipts to extract financial details.
-- **Coil**: Efficient image loading and rendering.
-- **YCharts**: Displays spending breakdowns with donut charts.
-
-### **Custom Components**
-- **Expandable Bottom Navigation Bar**: A dynamic bar that collapses into an expand button.
-- **Manual Data Input**: Allows users to enter expense details manually.
+| **Library**       | **Purpose**                     |
+|--------------------|---------------------------------|
+| **Veryfi API**     | Receipt OCR and data extraction |
+| **YCharts**        | Interactive chart visualization |
+| **Firebase**       | Authentication & Firestore      |
 
 ---
 
-## **Challenges**
+## **Functions in MainActivity.kt**
 
-### **1. Veryfi API Integration**
-- **Issue**: Uploading and parsing image data efficiently.
-- **Solution**: Created helper methods to extract essential information like tax, subtotal, and line items.
-
-### **2. State Management**
-- **Issue**: Managing states for navigation and dynamic UI updates.
-- **Solution**: Used `remember` and `LaunchedEffect` to handle state across screens.
-
-### **3. Firebase Integration**
-- **Issue**: Storing hierarchical data securely in Firestore.
-- **Solution**: Leveraged user authentication IDs for secure data storage paths.
-
-### **4. Chart Visualization**
-- **Issue**: Customizing charts to display financial data.
-- **Solution**: Used the YCharts library for interactive charts.
+### **Main Entry Point**
+1. **`MainActivity.onCreate`**  
+   Initializes the app, sets the theme, and launches the login screen.
 
 ---
 
-## **Modifications and Omissions**
-- **Features Omitted**:
-  - Multi-language support.
-  - Advanced filters for receipt data.
-- **Enhancements**:
-  - Added swiping gestures for better UX.
-  - Included animations for smoother transitions.
+### **Screens**
+2. **`ReceiptCaptureScreen`**  
+   Allows users to capture or upload a receipt image and process it using the Veryfi API.
+
+3. **`MainAppNav`**  
+   Sets up the main navigation structure for the app, including the top and bottom navigation bars.
+
+4. **`MainScreen`**  
+   Displays spending charts, filters, and receipt data.
+
+5. **`SettingsScreen`**  
+   Provides options for budget input, theme selection, and logout.
+
+6. **`NewScreen`**  
+   Offers swipeable navigation between receipt capture, manual data input, and instructions.
 
 ---
 
-## **Setup for Development**
+### **UI Components**
+7. **`FixedTopBar`**  
+   A top bar displaying greetings and app-level actions.
 
-### **1. Clone the Repository**
-Run the following command in a terminal:
+8. **`ExpandableBottomNavigationBar`**  
+   Bottom navigation bar with expandable/collapsible behavior.
 
-git clone <repository-url>
+9. **`ExpandButton`**  
+   Displays a button to expand or minimize the navigation bar.
+
+10. **`PageIndicator`**  
+    Visual indicator for pages in swipeable navigation.
+
+11. **`CardSection`**  
+    A reusable card component that displays a title and content.
+
+12. **`BudgetPieChart`**  
+    Visualizes spending with a color-coded pie chart.
+
+13. **`BudgetBreakdownDonutChart`**  
+    Displays a donut chart for detailed spending breakdown.
+
+14. **`DropdownMenuBox`**  
+    Provides a dropdown menu with selectable items.
+
+15. **`SimpleDropdownMenu`**  
+    Dropdown menu for simple selection with placeholders.
+
+16. **`DropdownMenuField`**  
+    A field with dropdown options for dates or categories.
+
+17. **`PhotoGalleryScreen`**  
+    Upload receipts via the camera or gallery.
+
+18. **`ManualDataInputScreen`**  
+    Enables manual transaction entry with item, tax, and total details.
+
+19. **`SwipeInstructionPage`**  
+    Displays swipe instructions for navigation between pages.
+
+20. **`AnimatedCheckmark`**  
+    Renders a success animation with a checkmark.
+
+---
+
+### **Utilities**
+21. **`randomColor`**  
+    Generates random colors for chart slices.
+
+22. **`saveBitmapToCache`**  
+    Saves a bitmap image to the app's cache directory.
+
+23. **`createTempFileFromUri`**  
+    Converts a URI to a temporary file.
+
+24. **`formatDate`**  
+    Formats a date string into `YYYY-MM-DD` format.
+
+---
+
+### **Data Processing**
+25. **`uploadToVeryfi`**  
+    Uploads a receipt image to the Veryfi API for OCR processing.
+
+26. **`saveFormattedDataToFirebase`**  
+    Saves extracted receipt data to Firestore.
+
+27. **`fetchData`** (Inside `MainScreen`)  
+    Fetches receipts data from Firebase to populate charts.
+
+28. **`fetchBudget`** (Inside `MainScreen`)  
+    Fetches and calculates the user’s budget usage.
+
+29. **`deleteReceipt`** (Inside `MainScreen`)  
+    Deletes a receipt document from Firestore.
+
+---
+
+## **Challenges Faced**
+1. **Veryfi Integration**  
+   - **Issue**: Efficiently processing image data and extracting receipt details.  
+   - **Solution**: Implemented helper methods to handle receipt parsing and ensure accurate extraction of financial data.
+
+2. **State Management**  
+   - **Issue**: Maintaining UI responsiveness when navigating between screens and processing data dynamically.  
+   - **Solution**: Used `remember` and `LaunchedEffect` for state persistence and real-time UI updates.
+
+3. **Firebase Security**  
+   - **Issue**: Ensuring secure storage and access of hierarchical user data.  
+   - **Solution**: Leveraged user authentication IDs to create isolated and secure paths in Firestore.
+
+---
+
+## **Future Enhancements**
+- **Multi-Language Support**: Allow users to switch between languages for better accessibility.
+- **Advanced Filters**: Add advanced filtering options for receipts based on category, date range, and keywords.
+- **Recurring Expense Tracking**: Introduce support for automatically tracking recurring expenses.
+
+---
+
+## **License**
+This project is licensed under the **MIT License**.
+
+---
+
+## **Contributors**
+- **Brandon Dunegan** - Developer and Maintainer.
+- **Jewoo Lee** - Developer and Maintainer.
+- **Ethan Liu** - Developer and Maintainer.
+
+---
+

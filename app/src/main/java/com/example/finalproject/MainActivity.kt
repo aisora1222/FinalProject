@@ -978,14 +978,14 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                                 Text("Start Date: ", fontWeight = FontWeight.Medium)
                                 Text(if (startDate.isEmpty()) "Select Start Date" else startDate)
                                 Button(onClick = { showDatePicker { startDate = it } }) {
-                                    Text("Pick Start Date")
+                                    Text("Start Date")
                                 }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("End Date: ", fontWeight = FontWeight.Medium)
                                 Text(if (endDate.isEmpty()) "Select End Date" else endDate)
                                 Button(onClick = { showDatePicker { endDate = it } }) {
-                                    Text("Pick End Date")
+                                    Text("End Date")
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))

@@ -977,6 +977,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Start Date: ", fontWeight = FontWeight.Medium)
                                 Text(if (startDate.isEmpty()) "Select Start Date" else startDate)
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Button(onClick = { showDatePicker { startDate = it } }) {
                                     Text("Start Date")
                                 }
@@ -984,6 +985,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("End Date: ", fontWeight = FontWeight.Medium)
                                 Text(if (endDate.isEmpty()) "Select End Date" else endDate)
+                                Spacer(modifier = Modifier.width(23.dp))
                                 Button(onClick = { showDatePicker { endDate = it } }) {
                                     Text("End Date")
                                 }
@@ -2527,26 +2529,31 @@ fun LogoutCard(onSignOut: () -> Unit) {
         shape = RoundedCornerShape(10.dp),                   // Adds rounded corners with a 10.dp radius
         elevation = CardDefaults.cardElevation(4.dp)         // Adds subtle elevation for a lifted effect
     ) {
-        // Column: Arranges the content vertically
-        Column(
-            modifier = Modifier.padding(20.dp),              // Adds padding around the content
-            verticalArrangement = Arrangement.spacedBy(10.dp) // Adds spacing between child elements
-        ) {
-            // Title Text: "Logout"
-            Text(
-                text = "Logout",                             // Displays the section title
-                style = MaterialTheme.typography.titleMedium, // Applies MaterialTheme for consistent styling
-                fontWeight = FontWeight.Bold                 // Makes the title bold
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+            //.padding(20.dp)
+            ,                             // Adds padding around the content
+            verticalAlignment = Alignment.CenterVertically,   // Align items vertically at the center
+            horizontalArrangement = Arrangement.SpaceBetween  // Pushes the button to the end (right)
+        ){
+            Column(
+                modifier = Modifier.padding(20.dp),              // Adds padding around the content
+                verticalArrangement = Arrangement.spacedBy(10.dp) // Adds spacing between child elements
+            ) {
+                // Title Text: "Logout"
+                Text(
+                    text = "Logout",                             // Displays the section title
+                    style = MaterialTheme.typography.titleMedium, // Applies MaterialTheme for consistent styling
+                    fontWeight = FontWeight.Bold                 // Makes the title bold
+                )
 
-            // Description Text: Provides instructions to the user
-            Text(
-                text = "Sign out from your account.",        // Instructional text
-                color = Color.Gray                           // Sets the text color to gray
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))         // Adds spacing between description and button
-
+                // Description Text: Provides instructions to the user
+                Text(
+                    text = "Sign out from your account.",        // Instructional text
+                    color = Color.Gray                           // Sets the text color to gray
+                )
+            }
             // Sign Out Button
             Button(
                 onClick = {
@@ -2560,11 +2567,12 @@ fun LogoutCard(onSignOut: () -> Unit) {
                     containerColor = Color(0xFF9e1c1c)
                 ),
                 modifier = Modifier
-                    .align(Alignment.End)     // Aligns the button to the end (right) of the row
+                    .padding(10.dp)
             ) {
                 Text("Sign Out", color = MaterialTheme.colorScheme.background)                             // Button text
             }
         }
+
     }
 }
 

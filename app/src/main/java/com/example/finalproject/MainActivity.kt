@@ -67,9 +67,14 @@ import com.google.gson.Gson
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import com.example.finalproject.ui.theme.Purple40
 import com.google.firebase.firestore.SetOptions
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -562,13 +567,19 @@ fun ExpandableBottomNavigationBar(
     onMinimize: () -> Unit // Callback to minimize the bottom navigation bar
 ) {
     // Surface provides a material design container for the bottom navigation bar
-    Surface {
+    Surface (
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)), // Clip content to rounded corners
+        color = Color(0xFF6e7885), // Background color for the Surface
+        shadowElevation = 4.dp // Optional: Adds a shadow for elevation effect
+    ){
         Column {
             // Row: Contains navigation tabs and the minimize button
             Row(
                 modifier = Modifier
                     .fillMaxWidth() // Makes the row take up the full width of the screen
-                    .background(Color.Magenta) // Sets the background color to magenta
+                    //.background(Purple40) // Sets the background color to magenta
                     .padding(vertical = 10.dp), // Adds vertical padding around the row
                 horizontalArrangement = Arrangement.SpaceEvenly, // Evenly space the tabs horizontally
                 verticalAlignment = Alignment.CenterVertically // Vertically align the content to center
@@ -586,7 +597,7 @@ fun ExpandableBottomNavigationBar(
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown, // Default down arrow icon
                     contentDescription = "Minimize", // Accessibility description for screen readers
-                    tint = Color.Green, // Sets the color of the icon to green
+                    tint = Color.DarkGray, // Sets the color of the icon to green
                     modifier = Modifier
                         .size(36.dp) // Sets the size of the icon
                         .clickable { onMinimize() } // Makes the icon clickable to trigger the minimize callback
@@ -621,7 +632,7 @@ fun ExpandButton(onExpand: () -> Unit) {
         Icon(
             imageVector = Icons.Default.KeyboardArrowUp, // Default upward arrow icon
             contentDescription = "Expand", // Provides accessibility support for screen readers
-            tint = Color.Green, // Sets the color of the icon to green
+            tint = Color.DarkGray, // Sets the color of the icon to green
             modifier = Modifier
                 .size(36.dp) // Sets the size of the icon to 36dp
                 .clickable { onExpand() } // Makes the icon clickable and triggers the callback
@@ -643,23 +654,54 @@ fun ExpandButton(onExpand: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class) // Required to use Material3's TopAppBar API
 @Composable
 fun FixedTopBar(userEmail: String) {
-    // TopAppBar: A material component that displays the app bar at the top of the screen
-    TopAppBar(
-        title = {
-            // Text composable to display a personalized greeting message
-            Text(
-                text = "Hello, $userEmail", // Greeting message with the user's email
-                color = Color.White, // Sets the text color to white
-                modifier = Modifier
-                    .fillMaxWidth() // Ensures the text takes up the full width of the available space
-                    .padding(vertical = 10.dp) // Adds vertical padding for better spacing
-            )
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Magenta // Sets the background color of the app bar to magenta
-        ),
-        modifier = Modifier.fillMaxWidth() // Makes the TopAppBar span the full width of the screen
-    )
+    Surface( // Wrap the TopAppBar inside a Surface to apply rounded corners
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)), // Rounded bottom corners
+        color = Color(0xFF6e7885), // Sets the background color
+        shadowElevation = 4.dp // Optional: Adds elevation for a shadow effect
+    ) {
+        // TopAppBar: A material component that displays the app bar at the top of the screen
+        TopAppBar(
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically, // Vertically align icon and text
+                    horizontalArrangement = Arrangement.Center, // Center content horizontally
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Icon placed to the left of the text
+                    Icon(
+                        imageVector = Icons.Filled.Delete, // Replace with any icon you prefer
+                        contentDescription = "App Icon", // Accessibility description
+                        modifier = Modifier
+                            .size(24.dp) // Set icon size
+                            .padding(end = 8.dp) // Add spacing between the icon and text
+                    )
+
+                    // Text composable to display the app name
+                    Text(
+                        text = "WasteWise", // App name
+                        style = MaterialTheme.typography.titleLarge, // Text style
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                    )
+
+                    Icon(
+                        imageVector = Icons.Filled.ShoppingCart, // Replace with any icon you prefer
+                        contentDescription = "App Icon", // Accessibility description
+                        modifier = Modifier
+                            .size(24.dp) // Set icon size
+                            .padding(end = 8.dp) // Add spacing between the icon and text
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent // Sets the background color of the app bar to magenta
+            ),
+            modifier = Modifier.fillMaxWidth() // Makes the TopAppBar span the full width of the screen
+        )
+    }
 }
 
 /**
@@ -1121,7 +1163,7 @@ fun BudgetPieChart(slices: List<PieChartData.Slice>) {
                     Text(
                         text = slice.label,                      // Category name
                         fontSize = 14.sp,                        // Sets text size to 14sp
-                        color = Color.Black                      // Sets text color to black
+                        color = MaterialTheme.colorScheme.onSurface                     // Sets text color to black
                     )
                 }
             }
@@ -1338,6 +1380,7 @@ fun SwipeInstructionPage() {
     // Box: A container to center the instruction text on the screen
     Box(
         modifier = Modifier
+            .background(MaterialTheme.colorScheme.background)
             .fillMaxSize(),                   // Makes the Box take up the full screen size
         contentAlignment = Alignment.Center // Centers the content inside the Box
     ) {
@@ -1517,8 +1560,10 @@ fun PhotoGalleryScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize() // Make the Box take up the full screen
+            .background(MaterialTheme.colorScheme.background)
             .padding(20.dp), // Add padding to the content
         contentAlignment = Alignment.Center // Center content inside the Box
+
     ) {
         when {
             // Show a loading spinner if the upload is in progress
@@ -1537,7 +1582,12 @@ fun PhotoGalleryScreen() {
                     // Button to launch the camera
                     Button(onClick = {
                         cameraLauncher.launch(null)
-                    }) {
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary, // Theme's primary color
+                            contentColor = MaterialTheme.colorScheme.onPrimary // Text color for primary background
+                        )
+                    ) {
                         Text("Take Photo")
                     }
 
@@ -1547,7 +1597,12 @@ fun PhotoGalleryScreen() {
                     // Button to open the gallery and select an image
                     Button(onClick = {
                         galleryLauncher.launch("image/*")
-                    }) {
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary, // Theme's primary color
+                            contentColor = MaterialTheme.colorScheme.onPrimary // Text color for primary background
+                        )
+                    ) {
                         Text("Select from Gallery")
                     }
                 }
@@ -1582,14 +1637,14 @@ fun SimpleDropdownMenu(
     Box(
         modifier = Modifier
             .wrapContentSize()                          // Adjusts size to wrap its content
-            .border(1.dp, Color.Gray, RoundedCornerShape(4.dp)) // Adds a gray border with rounded corners
+            .border(1.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(4.dp)) // Adds a gray border with rounded corners
             .clickable { expanded = !expanded }         // Toggles dropdown visibility when clicked
             .padding(10.dp)                             // Adds padding inside the box
     ) {
         // Display the currently selected item or a placeholder text
         Text(
             text = selectedItem.ifEmpty { "Select an Option" }, // Show placeholder if no item is selected
-            color = Color.Black                                // Sets text color to black
+            color = MaterialTheme.colorScheme.onSurface         // Sets text color to black
         )
 
         // DropdownMenu: Displays the list of selectable items
@@ -1600,7 +1655,8 @@ fun SimpleDropdownMenu(
             // Loop through each item in the provided list
             items.forEach { item ->
                 DropdownMenuItem(
-                    text = { Text(text = item) },   // Display each item as a menu option
+                    text = { Text(text = item,
+                        color = MaterialTheme.colorScheme.onSurface) },   // Display each item as a menu option
                     onClick = {
                         onItemSelected(item)       // Invoke callback with the selected item
                         expanded = false           // Collapse the dropdown after selection
@@ -1706,7 +1762,7 @@ fun ManualDataInputScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White),
+                    .background(color = MaterialTheme.colorScheme.background),
                 contentAlignment = Alignment.Center
             ) {
                 AnimatedCheckmark()
@@ -1739,7 +1795,7 @@ fun ManualDataInputScreen() {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Date Selection
-                Text("Select Year:")
+                Text("Select Year:",)
                 DropdownMenuField(years, selectedYear) { selectedYear = it }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1766,15 +1822,31 @@ fun ManualDataInputScreen() {
                         OutlinedTextField(
                             value = name,
                             onValueChange = { updatedName -> items[index] = updatedName to price },
-                            modifier = Modifier.weight(1f),
-                            label = { Text("Item Name") }
+                            modifier = Modifier
+                                .weight(1f),
+                            label = { Text("Item Name", color = MaterialTheme.colorScheme.onSurface) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface
+                            )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         OutlinedTextField(
                             value = price,
-                            onValueChange = { updatedPrice -> items[index] = name to updatedPrice },
+                            onValueChange = { updatedPrice ->
+                                val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$")
+                                if (updatedPrice.matches(regex) || updatedPrice.isEmpty()) {
+                                    items[index] = name to updatedPrice
+                                }
+                            },
                             modifier = Modifier.weight(1f),
-                            label = { Text("Price") }
+                            label = { Text("Price", color = MaterialTheme.colorScheme.onSurface) },
+                            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface
+                            )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(onClick = { items.removeAt(index) }) {
@@ -1795,9 +1867,18 @@ fun ManualDataInputScreen() {
                 Text("Tax:")
                 OutlinedTextField(
                     value = tax,
-                    onValueChange = { tax = it },
+                    onValueChange = { updatedTax ->
+                        val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$") // Regex: up to 4 digits and 2 decimal places
+                        if (updatedTax.matches(regex) || updatedTax.isEmpty()) {
+                            tax = updatedTax
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Tax") }
+                    label = { Text("Tax", color = MaterialTheme.colorScheme.onSurface) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1873,14 +1954,14 @@ fun DropdownMenuField(
     Box(
         modifier = Modifier
             .fillMaxWidth()                               // Makes the Box take up the full width of the parent
-            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp)) // Adds a gray border with rounded corners
+            .border(1.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(8.dp)) // Adds a gray border with rounded corners
             .clickable { expanded = !expanded }           // Toggles the dropdown visibility when clicked
             .padding(16.dp)                               // Adds padding inside the dropdown trigger
     ) {
         // Displays the currently selected item
         Text(
             text = selectedItem,                         // Displays the selected item
-            color = Color.Black                          // Text color set to black
+            color = MaterialTheme.colorScheme.onSurface  // Text color set to black
         )
 
         // DropdownMenu: Shows the list of selectable items
@@ -1891,7 +1972,8 @@ fun DropdownMenuField(
             // Iterate through the list of items and display them as menu items
             items.forEach { item ->
                 DropdownMenuItem(
-                    text = { Text(item) },               // Displays the item text
+                    text = { Text(text = item,
+                        color = MaterialTheme.colorScheme.onSurface) },               // Displays the item text
                     onClick = {
                         onItemSelected(item)             // Invoke the callback with the selected item
                         expanded = false                 // Collapse the dropdown menu after selection
@@ -2491,36 +2573,57 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
     var password by remember { mutableStateOf("") }             // Stores the password input
     var errorMessage by remember { mutableStateOf<String?>(null) } // Holds an error message when sign-in fails
 
+    val textColor = Color(0xFF000000) // Black text
+    val buttonColor = Color(0xFF414e5e) // Blue button color
+
+    val buttonModifier = Modifier
+        .fillMaxWidth() // Makes the buttons take up the full width
+        .height(48.dp) // Ensures consistent height for both buttons
+
     // Main layout: Column to arrange components vertically
     Column(
         modifier = Modifier
             .fillMaxSize()                                     // Makes the column take up the full screen
-            .padding(20.dp),                                   // Adds padding around the content
+            .padding(35.dp),                                   // Adds padding around the content
         verticalArrangement = Arrangement.Center,             // Centers the content vertically
         horizontalAlignment = Alignment.CenterHorizontally     // Centers the content horizontally
     ) {
         // Header Text
+        Text("Welcome to WasteWise", fontSize = 25.sp, fontWeight = FontWeight.Medium)
+
+        Spacer(modifier = Modifier.height(10.dp))
+
         Text("Sign in or Sign up with Firebase:")
 
         Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
 
         // Email Input Field
         OutlinedTextField(
-            value = email,                                     // Current email value
-            onValueChange = { email = it },                   // Updates the email state on input change
-            label = { Text("Email") },                        // Label for the input field
-            modifier = Modifier.fillMaxWidth()                // Makes the input field take up the full width
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email", color = textColor.copy(alpha = 0.7f)) },
+            textStyle = LocalTextStyle.current.copy(color = textColor),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = buttonColor,
+                unfocusedBorderColor = buttonColor,
+            )
         )
 
         Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
 
         // Password Input Field
         OutlinedTextField(
-            value = password,                                 // Current password value
-            onValueChange = { password = it },                // Updates the password state on input change
-            label = { Text("Password") },                     // Label for the input field
-            modifier = Modifier.fillMaxWidth(),               // Makes the input field take up the full width
-            visualTransformation = PasswordVisualTransformation() // Hides the password input
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password", color = textColor.copy(alpha = 0.7f)) },
+            textStyle = LocalTextStyle.current.copy(color = textColor),
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = buttonColor,
+                unfocusedBorderColor = buttonColor,
+            )
         )
 
         Spacer(modifier = Modifier.height(20.dp))             // Adds vertical space
@@ -2539,9 +2642,11 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
                             errorMessage = task.exception?.localizedMessage
                         }
                     }
-            }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+            modifier = buttonModifier
         ) {
-            Text("Sign In")                                   // Button text
+            Text("Sign In", color = Color.White)                                   // Button text
         }
 
         Spacer(modifier = Modifier.height(10.dp))             // Adds vertical space
@@ -2560,9 +2665,11 @@ fun AuthScreen(onAuthComplete: () -> Unit) {
                             errorMessage = task.exception?.localizedMessage
                         }
                     }
-            }
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+            modifier = buttonModifier
         ) {
-            Text("Sign Up")                                   // Button text
+            Text("Sign Up", color = Color.White)                                   // Button text
         }
 
         // Display Error Message

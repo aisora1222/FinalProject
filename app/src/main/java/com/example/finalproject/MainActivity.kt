@@ -792,7 +792,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
         ) {
             // Greeting message with user's email
             Text(
-                text = "Hello, $userEmail",
+                text = "Home Screen",
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -827,18 +827,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
 
             // Spacer to add vertical space before the sign-out button
             Spacer(modifier = Modifier.height(32.dp))
-
-            // Sign-out button
-            Button(
-                onClick = {
-                    // Sign out the user and invoke the onSignOut callback
-                    FirebaseAuth.getInstance().signOut()
-                    onSignOut()
-                },
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Text("Sign Out")
-            }
+            
         }
     }
 }

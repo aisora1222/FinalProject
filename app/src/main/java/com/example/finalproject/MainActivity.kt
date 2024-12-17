@@ -457,7 +457,7 @@ fun NavigationGraph(navController: NavHostController, userEmail: String, onSignO
     NavHost(navController, startDestination = "new") {
         composable("main") { MainScreen(userEmail, onSignOut) } // Main screen
         composable("new") { NewScreen() } // New screen
-        composable("settings") { SettingsScreen(userEmail) } // Settings screen
+        composable("settings") { SettingsScreen(userEmail, onSignOut) } // Settings screen
     }
 }
 //Main Screen ---------------------------------------------------------------------------------
@@ -1170,14 +1170,9 @@ fun DropdownMenuField(
 
 
 //Settings Screen ---------------------------------------------------------------------------------
-data class Setting(val title: String, val description: String)
 
 @Composable
-fun SettingsScreen(userEmail: String) {
-    // Generate 100 fake settings
-    val settingsList = List(100) { index ->
-        Setting(title = "Setting ${index + 1}", description = "Description for Setting ${index + 1}")
-    }
+fun SettingsScreen(userEmail: String, onSignOut: () -> Unit) {
 
     Scaffold(
         topBar = { FixedTopBar(userEmail) } 
@@ -1194,29 +1189,150 @@ fun SettingsScreen(userEmail: String) {
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(settingsList) { setting ->
-                    SettingItem(title = setting.title, description = setting.description)
+                item { UserInformationCard(userEmail) }
+                item { CurrencySelectionCard() }
+                item { ThemeSettingsCard() }
+                item { LogoutCard(onSignOut) }
+
                 }
             }
         }
 
     }
 
-}
 
 @Composable
-fun SettingItem(title: String, description: String) {
+fun UserInformationCard(userEmail: String) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Text("User Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = description, style = MaterialTheme.typography.bodySmall)
+            Text("Your Email: $userEmail", color = Color.Gray)
         }
     }
 }
 
+@Composable
+fun CurrencySelectionCard() {
+    val currencies = listOf("USD", "EURO", "GBP")
+    var selectedCurrency by remember { mutableStateOf("USD") }
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Currency Selection",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Choose your preferred currency.",
+                color = Color.Gray
+            )
+
+            // Dropdown Menu
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color.Gray, shape = RoundedCornerShape(8.dp))
+                    .clickable { expanded = true }
+                    .padding(16.dp)
+            ) {
+                Text(text = selectedCurrency)
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    currencies.forEach { currency ->
+                        DropdownMenuItem(
+                            text = { Text(currency) },
+                            onClick = {
+                                selectedCurrency = currency
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun ThemeSettingsCard() {
+    var isDarkThemeEnabled by remember { mutableStateOf(false) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "Theme Settings",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Switch between dark and light",
+                    color = Color.Gray
+                )
+            }
+            Switch(
+                checked = isDarkThemeEnabled,
+                onCheckedChange = { isDarkThemeEnabled = it }
+            )
+        }
+    }
+}
+
+@Composable
+fun LogoutCard(onSignOut: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Logout", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Sign out from your account.", color = Color.Gray)
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    FirebaseAuth.getInstance().signOut()
+                    onSignOut()
+                },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Sign Out")
+            }
+        }
+    }
+}
 
 
 

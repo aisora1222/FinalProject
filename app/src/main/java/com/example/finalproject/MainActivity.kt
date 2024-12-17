@@ -1902,7 +1902,7 @@ fun ManualDataInputScreen() {
                     onClick = {
                         val hasEmptyItem = items.any { it.first.isBlank() || it.second.isBlank() }
                         when {
-                            selectedCategory == "Select a Category" -> {
+                            selectedCategory.isBlank() || selectedCategory == "Select a Category" -> {
                                 Toast.makeText(context, "Please select a category.", Toast.LENGTH_SHORT).show()
                             }
                             hasEmptyItem -> {
@@ -1912,8 +1912,23 @@ fun ManualDataInputScreen() {
                                 Toast.makeText(context, "Tax cannot be empty.", Toast.LENGTH_SHORT).show()
                             }
                             else -> {
-                                isSubmitting = true
-                                showSuccessAnimation = true
+                                val formattedData = mapOf(
+                                    "category" to selectedCategory,
+                                    "date" to "$selectedYear-$selectedMonth-$selectedDay",
+                                    "items" to items.map { mapOf("name" to it.first, "price" to (it.second.toDoubleOrNull() ?: 0.0)) },
+                                    "tax" to (tax.toDoubleOrNull() ?: 0.0),
+                                    "total" to total
+                                )
+
+                                saveFormattedDataToFirebase(formattedData) { success ->
+                                    if (success) {
+                                        isSubmitting = false
+                                        showSuccessAnimation = true
+                                        resetFields()
+                                    } else {
+                                        Toast.makeText(context, "Failed to save data.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             }
                         }
                     },
@@ -1930,6 +1945,8 @@ fun ManualDataInputScreen() {
                         Text("Submit")
                     }
                 }
+
+
             }
         }
     }

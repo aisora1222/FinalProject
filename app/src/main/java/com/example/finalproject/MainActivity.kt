@@ -864,17 +864,35 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                 val categoryMap = mutableMapOf<String, Double>()
                 var total = 0.0
 
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+                // Step 1: Find the earliest and latest dates in the database
+                val allDates = result.documents.mapNotNull { it.getString("date") }
+                val earliestDate = allDates.minOrNull()
+                val latestDate = allDates.maxOrNull()
+
+                // Step 2: Set default startDate or endDate if only one is provided
+                if (startDate.isEmpty() && earliestDate != null) startDate = earliestDate
+                if (endDate.isEmpty() && latestDate != null) endDate = latestDate
+
+                // Step 3: Process receipts and filter by category and date range
                 for (document in result.documents) {
                     val id = document.id
                     val category = document.getString("category") ?: "Other"
                     val amount = document.get("total")?.toString()?.toDoubleOrNull() ?: 0.0
                     val date = document.getString("date") ?: "Unknown"
 
+                    val receiptDate = sdf.parse(date)
+                    val start = sdf.parse(startDate)
+                    val end = sdf.parse(endDate)
 
-                    if (!filterByCategory || category == selectedCategory) {
-                        tempList.add(mapOf("id" to id, "category" to category, "amount" to amount, "date" to date))
-                        categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + amount
-                        total += amount
+                    // Apply category and date range filter
+                    if (!filterByCategory || (category == selectedCategory)) {
+                        if (receiptDate != null && receiptDate in start..end) {
+                            tempList.add(mapOf("id" to id, "category" to category, "amount" to amount, "date" to date))
+                            categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + amount
+                            total += amount
+                        }
                     }
                 }
 
@@ -961,7 +979,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Start Date: ", fontWeight = FontWeight.Medium)
-                                Text(startDate.ifEmpty { "Not set" })
+                                Text(startDate.ifEmpty { "Pick Start Date" })
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Button(onClick = { showDatePicker { startDate = it } }) {
                                     Text("Pick Start Date")
@@ -969,7 +987,7 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("End Date: ", fontWeight = FontWeight.Medium)
-                                Text(endDate.ifEmpty { "Not set" })
+                                Text(endDate.ifEmpty { "Pick End Date" })
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Button(onClick = { showDatePicker { endDate = it } }) {
                                     Text("Pick End Date")
@@ -978,8 +996,9 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Button(
-                                onClick = { fetchData(filterByCategory = true)
-                                    if (startDate.isEmpty() && endDate.isEmpty()) {
+                                onClick = {
+                                    // Step 1: Automatically set last 30 days if only category is selected
+                                    if (startDate.isEmpty() && endDate.isEmpty() && selectedCategory != "Select a Category") {
                                         val today = calendar.time
                                         calendar.add(Calendar.DAY_OF_YEAR, -30)
                                         val last30Days = calendar.time
@@ -987,12 +1006,30 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
                                         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                                         startDate = sdf.format(last30Days)
                                         endDate = sdf.format(today)
-                                    }},
+                                    }
+
+                                    // Step 2: Determine the filter logic
+                                    val filterCategory = if (selectedCategory == "Select a Category") "" else selectedCategory
+                                    if (startDate.isNotEmpty() || endDate.isNotEmpty()) {
+                                        // Fetch data filtered by dates (with or without category)
+                                        fetchData(filterByCategory = filterCategory.isNotEmpty())
+                                    } else if (filterCategory.isNotEmpty()) {
+                                        // Fetch data filtered by category only
+                                        fetchData(filterByCategory = true)
+                                    }
+
+                                    // Step 3: Reset filters to default values
+                                    selectedCategory = "Select a Category"
+                                    startDate = ""
+                                    endDate = ""
+                                },
+                                enabled = selectedCategory != "Select a Category" || startDate.isNotEmpty() || endDate.isNotEmpty(),
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
                             ) {
                                 Text("Apply Filters", color = Color.White)
                             }
+
                         }
                     }
                 }

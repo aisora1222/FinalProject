@@ -907,31 +907,34 @@ fun ManualDataInputScreen() {
     var isSubmitting by remember { mutableStateOf(false) }
     var showSuccessAnimation by remember { mutableStateOf(false) }
 
-    // Date Picker State
+    // Initialize calendar and current date
     val calendar = Calendar.getInstance()
-    var selectedDate by remember { mutableStateOf("Select a Date") }
-    val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val currentYear = calendar.get(Calendar.YEAR)
+    val currentMonth = calendar.get(Calendar.MONTH) + 1 // Month is 0-based
+    val currentDay = calendar.get(Calendar.DAY_OF_MONTH)
 
-    // Context for DatePickerDialog
-    val context = LocalContext.current
+    val years = (2000..2030).map { it.toString() }
+    val months = (1..12).map { it.toString().padStart(2, '0') }
+    var selectedYear by remember { mutableStateOf(currentYear.toString()) }
+    var selectedMonth by remember { mutableStateOf(currentMonth.toString().padStart(2, '0')) }
+    var selectedDay by remember { mutableStateOf(currentDay.toString().padStart(2, '0')) }
 
-    // DatePickerDialog Trigger
-    var showDialog by remember { mutableStateOf(false) }
-    if (showDialog) {
-        DatePickerDialog(
-            context,
-            { _, year, month, dayOfMonth ->
-                calendar.set(year, month, dayOfMonth)
-                selectedDate = dateFormatter.format(calendar.time)
-                showDialog = false
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        ).show()
+    // Days calculation based on selected month and year
+    val daysInMonth = remember(selectedYear, selectedMonth) {
+        val month = selectedMonth.toInt()
+        val year = selectedYear.toInt()
+        when (month) {
+            1, 3, 5, 7, 8, 10, 12 -> (1..31).map { it.toString().padStart(2, '0') }
+            4, 6, 9, 11 -> (1..30).map { it.toString().padStart(2, '0') }
+            2 -> if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) {
+                (1..29).map { it.toString().padStart(2, '0') } // Leap year
+            } else {
+                (1..28).map { it.toString().padStart(2, '0') } // Non-leap year
+            }
+            else -> emptyList()
+        }
     }
 
-    // Update Total Calculation
     LaunchedEffect(items, tax) {
         val itemPrices = items.mapNotNull { it.second.toDoubleOrNull() }.sum()
         val taxAmount = tax.toDoubleOrNull() ?: 0.0
@@ -971,16 +974,30 @@ fun ManualDataInputScreen() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Date Picker
-            Text("Select Date:")
-            OutlinedTextField(
-                value = selectedDate,
-                onValueChange = {},
-                readOnly = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showDialog = true }, // Open DatePickerDialog
-                label = { Text("Date (YYYY-MM-DD)") }
+            // Date Selection Dropdowns
+            Text("Select Year:")
+            DropdownMenuField(
+                items = years,
+                selectedItem = selectedYear,
+                onItemSelected = { selectedYear = it }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text("Select Month:")
+            DropdownMenuField(
+                items = months,
+                selectedItem = selectedMonth,
+                onItemSelected = { selectedMonth = it }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text("Select Day:")
+            DropdownMenuField(
+                items = daysInMonth,
+                selectedItem = selectedDay,
+                onItemSelected = { selectedDay = it }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -1046,6 +1063,7 @@ fun ManualDataInputScreen() {
             Button(
                 onClick = {
                     isSubmitting = true
+                    val selectedDate = "$selectedYear-$selectedMonth-$selectedDay"
                     val data = mapOf(
                         "category" to selectedCategory,
                         "date" to selectedDate,
@@ -1071,6 +1089,36 @@ fun ManualDataInputScreen() {
                 } else {
                     Text("Submit")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun DropdownMenuField(
+    items: List<String>,
+    selectedItem: String,
+    onItemSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+            .clickable { expanded = !expanded }
+            .padding(16.dp)
+    ) {
+        Text(text = selectedItem, color = Color.Black)
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            items.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item) },
+                    onClick = {
+                        onItemSelected(item)
+                        expanded = false
+                    }
+                )
             }
         }
     }

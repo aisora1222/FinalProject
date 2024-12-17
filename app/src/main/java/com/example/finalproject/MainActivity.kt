@@ -1709,9 +1709,16 @@ fun ManualDataInputScreen() {
                         Spacer(modifier = Modifier.width(8.dp))
                         OutlinedTextField(
                             value = price,
-                            onValueChange = { updatedPrice -> items[index] = name to updatedPrice },
+                            onValueChange = { updatedPrice ->
+                                val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$")
+                                if (updatedPrice.matches(regex) || updatedPrice.isEmpty()) {
+                                    items[index] = name to updatedPrice
+                                }
+                            },
                             modifier = Modifier.weight(1f),
                             label = { Text("Price", color = MaterialTheme.colorScheme.onSurface) },
+                            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                            singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.onSurface,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.onSurface
@@ -1736,7 +1743,12 @@ fun ManualDataInputScreen() {
                 Text("Tax:")
                 OutlinedTextField(
                     value = tax,
-                    onValueChange = { tax = it },
+                    onValueChange = { updatedTax ->
+                        val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$") // Regex: up to 4 digits and 2 decimal places
+                        if (updatedTax.matches(regex) || updatedTax.isEmpty()) {
+                            tax = updatedTax
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Tax", color = MaterialTheme.colorScheme.onSurface) },
                     colors = OutlinedTextFieldDefaults.colors(

@@ -228,10 +228,10 @@ private fun uploadToVeryfi(
                 val gson = Gson()
                 val jsonResponse = gson.fromJson(response, Map::class.java)
 
-                // Extracting only the required fields
                 val category = jsonResponse["category"] as? String ?: "Unknown"
                 val currencyCode = jsonResponse["currency_code"] as? String ?: "Unknown"
-                val date = jsonResponse["date"] as? String ?: "Unknown"
+                val dateTime = jsonResponse["date"] as? String ?: "Unknown"
+                val formattedDate = formatDate(dateTime) // Convert to YYYY-MM-DD
 
                 val lineItems = jsonResponse["line_items"] as? List<*>
                 val extractedItems = lineItems?.map { item ->
@@ -245,59 +245,60 @@ private fun uploadToVeryfi(
                 val tax = jsonResponse["tax"] as? Double ?: 0.0
                 val total = jsonResponse["total"] as? Double ?: subtotal + tax
 
-                // Formatting the extracted data
                 val formattedData = mapOf(
                     "category" to category,
-                    "currency_code" to currencyCode,
-                    "date" to date,
+                    "date" to formattedDate, // Use formatted date
                     "items" to extractedItems,
                     "subtotal" to subtotal,
                     "tax" to tax,
                     "total" to total
                 )
 
-                // Push extracted data to Firebase
-                saveFormattedDataToFirebase(formattedData)
-
-                // Provide feedback to the UI
-                val formattedResponse = """
-                    Category: $category
-                    Currency Code: $currencyCode
-                    Date: $date
-                    Items:
-                    ${extractedItems.joinToString("\n") { "- ${it["name"]}: $${it["price"]}" }}
-                    Subtotal: $${"%.2f".format(subtotal)}
-                    Tax: $${"%.2f".format(tax)}
-                    Total: $${"%.2f".format(total)}
-                """.trimIndent()
-
-                onResponse(formattedResponse)
+                saveFormattedDataToFirebase(formattedData) { success ->
+                    if (success) onResponse("Data uploaded successfully!")
+                    else onError(Exception("Failed to save data."))
+                }
             },
-            onError = { error ->
-                onError(error)
-            }
+            onError = { error -> onError(error) }
         )
     } catch (e: Exception) {
         onError(e)
     }
 }
-private fun saveFormattedDataToFirebase(data: Map<String, Any>) {
+
+// Helper Function to Format Date
+private fun formatDate(dateTime: String): String {
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val parsedDate = inputFormat.parse(dateTime)
+        outputFormat.format(parsedDate ?: dateTime)
+    } catch (e: Exception) {
+        dateTime // Return original if formatting fails
+    }
+}
+
+private fun saveFormattedDataToFirebase(data: Map<String, Any>, onComplete: (Boolean) -> Unit) {
     val firestore = FirebaseFirestore.getInstance()
     val userId = FirebaseAuth.getInstance().currentUser?.uid
 
     if (userId != null) {
         firestore.collection("users").document(userId).collection("receipts")
             .add(data)
-            .addOnSuccessListener { documentReference ->
-                println("Document saved with ID: ${documentReference.id}")
+            .addOnSuccessListener {
+                println("Document saved successfully!")
+                onComplete(true) // Notify success
             }
-            .addOnFailureListener { error ->
-                println("Failed to save document: $error")
+            .addOnFailureListener {
+                println("Failed to save document: ${it.message}")
+                onComplete(false) // Notify failure
             }
     } else {
-        println("User is not authenticated. Cannot save data.")
+        println("User is not authenticated.")
+        onComplete(false)
     }
 }
+
 
 
 private fun createTempFileFromUri(uri: Uri, context: Context): File {
@@ -1107,7 +1108,7 @@ fun ManualDataInputScreen() {
             Button(
                 onClick = {
                     isSubmitting = true
-                    val selectedDate = "$selectedYear-$selectedMonth-$selectedDay"
+                    val selectedDate = "$selectedYear-$selectedMonth-$selectedDay" // Date format YYYY-MM-DD
                     val data = mapOf(
                         "category" to selectedCategory,
                         "date" to selectedDate,
@@ -1115,9 +1116,12 @@ fun ManualDataInputScreen() {
                         "tax" to tax,
                         "total" to total.toString()
                     )
-                    saveFormattedDataToFirebase(data)
-                    isSubmitting = false
-                    showSuccessAnimation = true
+                    saveFormattedDataToFirebase(data) { success ->
+                        if (success) {
+                            isSubmitting = false
+                            showSuccessAnimation = true // Trigger success animation
+                        }
+                    }
                 },
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
@@ -1134,7 +1138,25 @@ fun ManualDataInputScreen() {
                     Text("Submit")
                 }
             }
+
+            if (showSuccessAnimation) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White.copy(alpha = 0.8f)), // Transparent background
+                    contentAlignment = Alignment.Center
+                ) {
+                    AnimatedCheckmark() // Show green check animation
+                }
+                // Reset animation after 2 seconds
+                LaunchedEffect(Unit) {
+                    delay(2000)
+                    showSuccessAnimation = false
+                }
+            }
+
         }
+
     }
 }
 

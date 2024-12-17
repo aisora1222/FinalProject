@@ -70,6 +70,7 @@ import com.example.finalproject.ui.theme.FinalProjectTheme
 import com.example.finalproject.utils.VeryfiApiClient
 import com.google.gson.Gson
 import android.app.DatePickerDialog
+import android.widget.Toast
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import java.text.SimpleDateFormat
@@ -464,46 +465,110 @@ fun NavigationGraph(navController: NavHostController, userEmail: String, onSignO
 //Main Screen ---------------------------------------------------------------------------------
 @Composable
 fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
-    val categories = listOf("Housing", "Food", "Transportation", "Entertainment")
-    var selectedCategory by remember { mutableStateOf("") }
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
 
-    Column(
+    var pieChartData by remember { mutableStateOf<List<PieChartData.Slice>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Fetch receipts data from Firebase
+    LaunchedEffect(Unit) {
+        if (userId != null) {
+            firestore.collection("users").document(userId).collection("receipts")
+                .get()
+                .addOnSuccessListener { result ->
+                    val categoryMap = mutableMapOf<String, Double>()
+
+                    for (document in result.documents) {
+                        val category = document.getString("category") ?: "Other"
+                        val total = document.get("total")?.toString()?.toDoubleOrNull() ?: 0.0
+                        categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + total
+                    }
+
+                    // Prepare pie chart data
+                    pieChartData = categoryMap.map { (category, amount) ->
+                        PieChartData.Slice(
+                            label = category,
+                            value = amount.toFloat(),
+                            color = randomColor()
+                        )
+                    }
+                    isLoading = false
+                }
+                .addOnFailureListener {
+                    isLoading = false
+                    println("Error fetching receipts: ${it.message}")
+                }
+        }
+    }
+
+    // UI
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.Start
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text("Hello, $userEmail", fontWeight = FontWeight.Bold)
+        Column(
+            verticalArrangement = Arrangement.Center, // Center everything vertically
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Text(
+                text = "Hello, $userEmail",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
 
-        Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = "Your Spending by Category:",
+                fontSize = 18.sp,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
 
-        Text("Select a Spending Category:")
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else {
+                if (pieChartData.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .size(350.dp) // Bigger chart size
+                            .padding(8.dp)
+                            .align(Alignment.CenterHorizontally)
+                    ) {
+                        BudgetPieChart(pieChartData)
+                    }
+                } else {
+                    Text("No data available.")
+                }
+            }
 
-        Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-        CategorySelectionDropdown(
-            categories = categories,
-            selectedCategory = selectedCategory,
-            onCategorySelected = { selectedCategory = it } // Update selected category
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        if (selectedCategory.isNotEmpty()) {
-            Text("You selected: $selectedCategory", fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Button(onClick = {
-            FirebaseAuth.getInstance().signOut()
-            onSignOut()
-        }) {
-            Text("Sign Out")
+            Button(
+                onClick = {
+                    FirebaseAuth.getInstance().signOut()
+                    onSignOut()
+                },
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                Text("Sign Out")
+            }
         }
     }
 }
+
+fun randomColor(): Color {
+    val random = java.util.Random()
+    return Color(
+        red = random.nextFloat(),
+        green = random.nextFloat(),
+        blue = random.nextFloat(),
+        alpha = 1f
+    )
+}
+
 
 @Composable
 fun CategorySelectionDropdown(
@@ -642,6 +707,66 @@ fun BudgetBreakdownDonutChart() {
                     fontWeight = FontWeight.Bold,
                     color = slice.color
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun BudgetPieChart(slices: List<PieChartData.Slice>) {
+    val pieChartData = PieChartData(
+        slices = slices,
+        plotType = PlotType.Pie
+    )
+
+    // PieChartConfig without labels
+    val pieChartConfig = PieChartConfig(
+        showSliceLabels = false,
+        isAnimationEnable = true,
+        activeSliceAlpha = 0.8f,
+
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Pie Chart on the left
+        PieChart(
+            modifier = Modifier
+                .size(200.dp)
+                .padding(end = 16.dp), // Space between chart and legend
+            pieChartData = pieChartData,
+            pieChartConfig = pieChartConfig
+        )
+
+        // Legend on the right
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.Start
+        ) {
+            slices.forEach { slice ->
+                Row(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Color Dot
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(slice.color, shape = CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // Category Name
+                    Text(
+                        text = slice.label,
+                        fontSize = 14.sp,
+                        color = Color.Black
+                    )
+                }
             }
         }
     }
@@ -944,7 +1069,6 @@ fun SimpleDropdownMenu(
         }
     }
 }
-
 @Composable
 fun ManualDataInputScreen() {
     val categories = listOf(
@@ -962,10 +1086,12 @@ fun ManualDataInputScreen() {
     var isSubmitting by remember { mutableStateOf(false) }
     var showSuccessAnimation by remember { mutableStateOf(false) }
 
-    // Initialize calendar and current date
+    val context = LocalContext.current
+
+    // Date Selection Logic
     val calendar = Calendar.getInstance()
     val currentYear = calendar.get(Calendar.YEAR)
-    val currentMonth = calendar.get(Calendar.MONTH) + 1 // Month is 0-based
+    val currentMonth = calendar.get(Calendar.MONTH) + 1
     val currentDay = calendar.get(Calendar.DAY_OF_MONTH)
 
     val years = (2000..2030).map { it.toString() }
@@ -974,7 +1100,6 @@ fun ManualDataInputScreen() {
     var selectedMonth by remember { mutableStateOf(currentMonth.toString().padStart(2, '0')) }
     var selectedDay by remember { mutableStateOf(currentDay.toString().padStart(2, '0')) }
 
-    // Days calculation based on selected month and year
     val daysInMonth = remember(selectedYear, selectedMonth) {
         val month = selectedMonth.toInt()
         val year = selectedYear.toInt()
@@ -982,9 +1107,9 @@ fun ManualDataInputScreen() {
             1, 3, 5, 7, 8, 10, 12 -> (1..31).map { it.toString().padStart(2, '0') }
             4, 6, 9, 11 -> (1..30).map { it.toString().padStart(2, '0') }
             2 -> if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) {
-                (1..29).map { it.toString().padStart(2, '0') } // Leap year
+                (1..29).map { it.toString().padStart(2, '0') }
             } else {
-                (1..28).map { it.toString().padStart(2, '0') } // Non-leap year
+                (1..28).map { it.toString().padStart(2, '0') }
             }
             else -> emptyList()
         }
@@ -996,169 +1121,165 @@ fun ManualDataInputScreen() {
         total = itemPrices + taxAmount
     }
 
+    // Reset Functionality
+    fun resetFields() {
+        selectedCategory = "Select a Category"
+        selectedYear = currentYear.toString()
+        selectedMonth = currentMonth.toString().padStart(2, '0')
+        selectedDay = currentDay.toString().padStart(2, '0')
+        items.clear()
+        items.add(Pair("", ""))
+        tax = ""
+        total = 0.0
+        isSubmitting = false
+    }
+
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-
+        modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.Start
-        ) {
-            // Category Dropdown
-            Text("Select a Category:")
-            SimpleDropdownMenu(
-                items = categories,
-                selectedItem = selectedCategory,
-                onItemSelected = { selectedCategory = it }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Date Selection Dropdowns
-            Text("Select Year:")
-            DropdownMenuField(
-                items = years,
-                selectedItem = selectedYear,
-                onItemSelected = { selectedYear = it }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text("Select Month:")
-            DropdownMenuField(
-                items = months,
-                selectedItem = selectedMonth,
-                onItemSelected = { selectedMonth = it }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text("Select Day:")
-            DropdownMenuField(
-                items = daysInMonth,
-                selectedItem = selectedDay,
-                onItemSelected = { selectedDay = it }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Items Input
-            Text("Enter Items:")
-            items.forEachIndexed { index, (name, price) ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { updatedName ->
-                            items[index] = updatedName to price
-                        },
-                        modifier = Modifier.weight(1f),
-                        label = { Text("Item Name") }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = price,
-                        onValueChange = { updatedPrice ->
-                            items[index] = name to updatedPrice
-                        },
-                        modifier = Modifier.weight(1f),
-                        label = { Text("Price") }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(onClick = { items.removeAt(index) }) {
-                        Text("Remove")
-                    }
-                }
-            }
-            Button(
-                onClick = { items.add("" to "") },
-                modifier = Modifier.align(Alignment.End)
+        if (showSuccessAnimation) {
+            // Success Animation
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
             ) {
-                Text("Add Item")
+                AnimatedCheckmark()
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            LaunchedEffect(Unit) {
+                delay(2000)
+                showSuccessAnimation = false
+                resetFields()
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.Start
+            ) {
+                // Category Dropdown
+                Text("Select a Category:")
+                SimpleDropdownMenu(
+                    items = categories,
+                    selectedItem = selectedCategory,
+                    onItemSelected = { selectedCategory = it }
+                )
 
-            // Tax Input
-            Text("Tax:")
-            OutlinedTextField(
-                value = tax,
-                onValueChange = { tax = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Tax") }
-            )
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
+                // Date Selection Dropdowns
+                Text("Select Year:")
+                DropdownMenuField(years, selectedYear) { selectedYear = it }
 
-            // Total
-            Text("Total: $${"%.2f".format(total)}")
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Text("Select Month:")
+                DropdownMenuField(months, selectedMonth) { selectedMonth = it }
 
-            // Submit Button
-            Button(
-                onClick = {
-                    isSubmitting = true
-                    val selectedDate = "$selectedYear-$selectedMonth-$selectedDay" // Date format YYYY-MM-DD
-                    val data = mapOf(
-                        "category" to selectedCategory,
-                        "date" to selectedDate,
-                        "items" to items.map { mapOf("name" to it.first, "price" to it.second) },
-                        "tax" to tax,
-                        "total" to total.toString()
-                    )
-                    saveFormattedDataToFirebase(data) { success ->
-                        if (success) {
-                            isSubmitting = false
-                            showSuccessAnimation = true // Trigger success animation
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("Select Day:")
+                DropdownMenuField(daysInMonth, selectedDay) { selectedDay = it }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Items Input
+                Text("Enter Items:")
+                items.forEachIndexed { index, (name, price) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { updatedName -> items[index] = updatedName to price },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("Item Name") }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = price,
+                            onValueChange = { updatedPrice -> items[index] = name to updatedPrice },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("Price") }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(onClick = { items.removeAt(index) }) {
+                            Text("Remove")
                         }
                     }
-                },
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(8.dp)
-                    .width(150.dp)
-            ) {
-                if (isSubmitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Submit")
                 }
-            }
-
-            if (showSuccessAnimation) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.White.copy(alpha = 0.8f)), // Transparent background
-                    contentAlignment = Alignment.Center
+                Button(
+                    onClick = { items.add("" to "") },
+                    modifier = Modifier.align(Alignment.End)
                 ) {
-                    AnimatedCheckmark() // Show green check animation
+                    Text("Add Item")
                 }
-                // Reset animation after 2 seconds
-                LaunchedEffect(Unit) {
-                    delay(2000)
-                    showSuccessAnimation = false
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Tax Input
+                Text("Tax:")
+                OutlinedTextField(
+                    value = tax,
+                    onValueChange = { tax = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Tax") }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Total Display
+                Text("Total: $${"%.2f".format(total)}")
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Submit Button with Validation
+                Button(
+                    onClick = {
+                        val hasEmptyItem = items.any { it.first.isBlank() || it.second.isBlank() }
+                        when {
+                            selectedCategory == "Select a Category" -> {
+                                Toast.makeText(context, "Please select a category.", Toast.LENGTH_SHORT).show()
+                            }
+                            hasEmptyItem -> {
+                                Toast.makeText(context, "Item name and price cannot be empty.", Toast.LENGTH_SHORT).show()
+                            }
+                            tax.isBlank() -> {
+                                Toast.makeText(context, "Tax cannot be empty.", Toast.LENGTH_SHORT).show()
+                            }
+                            else -> {
+                                isSubmitting = true
+                                showSuccessAnimation = true
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .width(150.dp)
+                ) {
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Submit")
+                    }
                 }
             }
-
         }
-
     }
 }
+
 
 @Composable
 fun DropdownMenuField(

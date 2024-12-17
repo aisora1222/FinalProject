@@ -17,6 +17,7 @@ gson = "2.8.8"
 navigationCompose = "2.8.4"
 navigationRuntimeKtx = "2.8.4"
 foundationGestures = "1.5.1"
+composeMaterial = "1.4.0"
 
 [libraries]
 
@@ -49,6 +50,7 @@ gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "navigationRuntimeKtx" }
 androidx-foundation-gestures = { group = "androidx.compose.foundation", name = "foundation-gestures", version.ref = "foundationGestures" }
+androidx-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "composeMaterial" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

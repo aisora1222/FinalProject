@@ -68,30 +68,19 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.clip
-import com.example.finalproject.ui.theme.Purple40
 import com.google.firebase.firestore.SetOptions
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import android.app.DatePickerDialog
-import co.yml.charts.ui.linechart.LineChart
-import co.yml.charts.common.model.Point
-import co.yml.charts.axis.AxisData
-import co.yml.charts.ui.linechart.LineChart
-import co.yml.charts.ui.linechart.model.Line
-import co.yml.charts.ui.linechart.model.LineChartData
-import co.yml.charts.ui.linechart.model.LinePlotData
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.draw.shadow
 
 
 // Kotlin coroutine
@@ -800,17 +789,16 @@ fun NavigationGraph(
  * @param userEmail The email of the logged-in user, displayed as part of the greeting.
  * @param onSignOut A callback function invoked when the user clicks the "Sign Out" button.
  */
-
 @Composable
 fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
     val firestore = FirebaseFirestore.getInstance()
     val userId = FirebaseAuth.getInstance().currentUser?.uid
 
     var pieChartData by remember { mutableStateOf<List<PieChartData.Slice>>(emptyList()) }
-    var lineChartData by remember { mutableStateOf<LineChartData?>(null) }
-
+    var budgetChartData by remember { mutableStateOf<List<PieChartData.Slice>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var totalSpending by remember { mutableStateOf(0.0) }
+    var totalBudget by remember { mutableStateOf(0.0) }
     var chartType by remember { mutableStateOf("PIE") }
 
     var showFilters by remember { mutableStateOf(false) }
@@ -820,6 +808,8 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
 
     val calendar = Calendar.getInstance()
     val context = LocalContext.current
+
+    var receiptList by remember { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
 
     fun showToast(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -838,30 +828,56 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
         ).show()
     }
 
-    fun fetchDefaultData() {
+    fun fetchBudget() {
+        firestore.collection("users")
+            .document(userId ?: "")
+            .collection("userData")
+            .document("budget")
+            .get()
+            .addOnSuccessListener { document ->
+                val budgetValue = document.getString("budget")?.toDoubleOrNull() ?: 0.0
+                totalBudget = budgetValue
+                budgetChartData = listOf(
+                    PieChartData.Slice("Used", totalSpending.toFloat(), Color.Red),
+                    PieChartData.Slice("Remaining", (budgetValue - totalSpending).toFloat(), Color.Green)
+                )
+            }
+            .addOnFailureListener {
+                showToast("Failed to load budget.")
+            }
+    }
+
+    fun fetchData(filterByCategory: Boolean = false) {
         isLoading = true
         firestore.collection("users")
             .document(userId ?: "")
             .collection("receipts")
             .get()
             .addOnSuccessListener { result ->
+                val tempList = mutableListOf<Map<String, Any>>()
                 val categoryMap = mutableMapOf<String, Double>()
                 var total = 0.0
 
                 for (document in result.documents) {
+                    val id = document.id
                     val category = document.getString("category") ?: "Other"
                     val amount = document.get("total")?.toString()?.toDoubleOrNull() ?: 0.0
+                    val date = document.getString("date") ?: "Unknown"
 
-                    categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + amount
-                    total += amount
+                    if (!filterByCategory || category == selectedCategory) {
+                        tempList.add(mapOf("id" to id, "category" to category, "amount" to amount, "date" to date))
+                        categoryMap[category] = categoryMap.getOrDefault(category, 0.0) + amount
+                        total += amount
+                    }
                 }
 
+                receiptList = tempList
                 pieChartData = categoryMap.map { (k, v) ->
                     PieChartData.Slice(k, v.toFloat(), randomColor())
                 }
                 totalSpending = total
-                chartType = "PIE"
                 isLoading = false
+                fetchBudget() // Fetch budget after calculating total spending
             }
             .addOnFailureListener {
                 showToast("Error fetching data.")
@@ -869,147 +885,118 @@ fun MainScreen(userEmail: String, onSignOut: () -> Unit) {
             }
     }
 
-    fun fetchFilteredData() {
-        if (selectedCategory.isEmpty()) {
-            showToast("Category is required.")
-            return
-        }
-
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        if (startDate.isEmpty() && endDate.isEmpty()) {
-            val today = sdf.format(calendar.time)
-            calendar.add(Calendar.MONTH, -1)
-            startDate = sdf.format(calendar.time)
-            endDate = today
-        }
-
-        if (sdf.parse(endDate).time - sdf.parse(startDate).time > 365L * 24 * 60 * 60 * 1000) {
-            showToast("Date range cannot exceed 12 months.")
-            return
-        }
-
-        isLoading = true
-        firestore.collection("users")
-            .document(userId ?: "")
-            .collection("receipts")
-            .get()
-            .addOnSuccessListener { result ->
-                val linePoints = mutableListOf<Pair<String, Float>>()
-
-                for (document in result.documents) {
-                    val category = document.getString("category") ?: ""
-                    val date = document.getString("date") ?: ""
-                    val amount = document.get("total")?.toString()?.toDoubleOrNull() ?: 0.0
-
-                    if (category == selectedCategory && date >= startDate && date <= endDate) {
-                        linePoints.add(Pair(date, amount.toFloat()))
-                    }
-                }
-
-                if (linePoints.isNotEmpty()) {
-                    val sortedPoints = linePoints.sortedBy { it.first }
-                    val lineDataPoints = sortedPoints.mapIndexed { index, (_, value) ->
-                        Point(index.toFloat(), value)
-                    }
-
-                    lineChartData = LineChartData(
-                        linePlotData = LinePlotData(
-                            lines = listOf(Line(dataPoints = lineDataPoints))
-                        ),
-                        xAxisData = AxisData.Builder()
-                            .steps(lineDataPoints.size - 1)
-                            .labelData { sortedPoints[it].first }
-                            .build(),
-                        yAxisData = AxisData.Builder()
-                            .steps(5)
-                            .build()
-                    )
-                    chartType = "LINE"
-                } else {
-                    showToast("No data available for the selected filters.")
-                    chartType = "EMPTY"
-                }
-                isLoading = false
-            }
-            .addOnFailureListener {
-                showToast("Failed to fetch data.")
-                isLoading = false
-            }
-    }
-
     LaunchedEffect(Unit) {
-        fetchDefaultData()
+        fetchData()
     }
 
     Scaffold(topBar = { FixedTopBar(userEmail) }) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Button(onClick = { showFilters = !showFilters }) {
-                    Text(if (showFilters) "Hide Filters" else "Filter")
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { showFilters = !showFilters }) {
+                        Icon(
+                            imageVector = if (showFilters) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Toggle Filters",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 
             if (showFilters) {
-                Column {
-                    Text("Select Category:")
-                    SimpleDropdownMenu(
-                        items = listOf("Advertising & Marketing", "Automotive", "Bank Charges & Fees",
-                            "Legal & Professional Services", "Insurance", "Meals & Entertainment",
-                            "Office Supplies & Software", "Taxes & Licenses", "Travel",
-                            "Rent & Lease", "Repairs & Maintenance", "Payroll", "Utilities",
-                            "Job Supplies", "Grocery"),
-                        selectedItem = selectedCategory,
-                        onItemSelected = { selectedCategory = it }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row {
-                        Text("Start Date: $startDate")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = { showDatePicker { startDate = it } }) {
-                            Text("Pick Start Date")
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Filter Options", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text("Select Category:")
+                            DropdownMenuBox(
+                                items = listOf("Advertising & Marketing", "Automotive", "Bank Charges & Fees",
+                                    "Legal & Professional Services", "Insurance", "Meals & Entertainment",
+                                    "Office Supplies & Software", "Taxes & Licenses", "Travel",
+                                    "Rent & Lease", "Repairs & Maintenance", "Payroll", "Utilities",
+                                    "Job Supplies", "Grocery"),
+                                selectedItem = selectedCategory,
+                                onItemSelected = { selectedCategory = it }
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Start Date: ", fontWeight = FontWeight.Medium)
+                                Text(startDate.ifEmpty { "Not set" })
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(onClick = { showDatePicker { startDate = it } }) {
+                                    Text("Pick Start Date")
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("End Date: ", fontWeight = FontWeight.Medium)
+                                Text(endDate.ifEmpty { "Not set" })
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(onClick = { showDatePicker { endDate = it } }) {
+                                    Text("Pick End Date")
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Button(
+                                onClick = { fetchData(filterByCategory = true) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
+                            ) {
+                                Text("Apply Filters", color = Color.White)
+                            }
                         }
-                    }
-                    Row {
-                        Text("End Date: $endDate")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = { showDatePicker { endDate = it } }) {
-                            Text("Pick End Date")
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { fetchFilteredData() }) {
-                        Text("Apply")
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Total Spending: $${"%.2f".format(totalSpending)}", fontSize = 20.sp)
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Total Spending: $${"%.2f".format(totalSpending)}", fontSize = 20.sp)
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (isLoading) {
-                CircularProgressIndicator()
-            } else {
-                when (chartType) {
-                    "LINE" -> lineChartData?.let {
-                        LineChart(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(300.dp),
-                            lineChartData = it
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                if (isLoading) {
+                    CircularProgressIndicator()
+                } else {
+                    if (pieChartData.isNotEmpty()) {
+                        BudgetPieChart(pieChartData)
+                    } else {
+                        Text(
+                            "No data available for the selected filters.",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            color = Color.Gray
                         )
                     }
-                    "PIE" -> BudgetPieChart(pieChartData)
-                    else -> Text("No data available for the selected filters.")
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Budget Usage Chart", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                if (budgetChartData.isNotEmpty()) {
+                    BudgetPieChart(budgetChartData)
+                } else {
+                    Text("No budget data available.", color = Color.Gray)
                 }
             }
         }
@@ -1035,58 +1022,20 @@ fun randomColor(): Color {
     )
 }
 
-
-
-/**
- * CategorySelectionDropdown:
- * A composable function that displays a dropdown menu for selecting a category.
- *
- * Features:
- * - Displays a list of selectable categories.
- * - Shows the currently selected category.
- * - Invokes a callback when a category is selected.
- *
- * @param categories A list of category strings to display in the dropdown.
- * @param selectedCategory The currently selected category, displayed as the dropdown title.
- * @param onCategorySelected A callback function invoked when the user selects a category.
- */
 @Composable
-fun CategorySelectionDropdown(
-    categories: List<String>,             // List of category options
-    selectedCategory: String,             // Currently selected category
-    onCategorySelected: (String) -> Unit  // Callback invoked with the selected category
-) {
-    // State to track whether the dropdown menu is expanded or collapsed
+fun DropdownMenuBox(items: List<String>, selectedItem: String, onItemSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
 
-    // Box: Wraps the dropdown trigger and provides visual styling
-    Box(
-        modifier = Modifier
-            .fillMaxWidth() // Takes up the full width of the parent container
-            .border(1.dp, Color.Gray, shape = RoundedCornerShape(8.dp)) // Adds a gray border with rounded corners
-            .clickable { expanded = !expanded } // Toggles dropdown expansion on click
-            .padding(16.dp) // Adds padding inside the box for better spacing
-    ) {
-        // Display the selected category or a default prompt if none is selected
-        Text(
-            text = selectedCategory.ifEmpty { "Select a Category" }, // Fallback text when no category is selected
-            color = Color.Black // Sets the text color to black
-        )
-
-        // DropdownMenu: Displays the list of category options
-        DropdownMenu(
-            expanded = expanded,               // Controls whether the dropdown is visible
-            onDismissRequest = { expanded = false } // Closes the dropdown when dismissed
-        ) {
-            // Loop through the list of categories and create a menu item for each
-            categories.forEach { category ->
-                DropdownMenuItem(
-                    text = { Text(text = category) }, // Displays the category name as a menu item
-                    onClick = {
-                        onCategorySelected(category) // Invoke the callback with the selected category
-                        expanded = false // Close the dropdown menu after selection
-                    }
-                )
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth()) {
+            Text(text = selectedItem.ifEmpty { "Select a Category" })
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            items.forEach { item ->
+                DropdownMenuItem(text = { Text(item) }, onClick = {
+                    onItemSelected(item)
+                    expanded = false
+                })
             }
         }
     }
@@ -1107,61 +1056,65 @@ fun CategorySelectionDropdown(
  */
 @Composable
 fun BudgetPieChart(slices: List<PieChartData.Slice>) {
-    // Create pie chart data using the list of slices
+    // Pie chart data
     val pieChartData = PieChartData(
-        slices = slices,           // The slices represent chart data
-        plotType = PlotType.Pie    // Specifies the chart type as "Pie"
+        slices = slices,
+        plotType = PlotType.Pie
     )
 
-    // Pie chart configuration (e.g., animations, alpha)
+    // Pie chart configuration
     val pieChartConfig = PieChartConfig(
-        showSliceLabels = false,    // Disables labels on the pie chart slices
-        isAnimationEnable = true,   // Enables animation for slice appearance
-        activeSliceAlpha = 0.8f, // Sets transparency for active slices
-        backgroundColor = Color.Transparent
+        showSliceLabels = false,
+        isAnimationEnable = true,
+        activeSliceAlpha = 0.9f,
+        backgroundColor = Color.Transparent,
     )
 
-    // Row: Contains the pie chart on the left and the legend on the right
+    // Layout: Row with the chart and its legend
     Row(
         modifier = Modifier
-            .fillMaxWidth()                // Makes the Row span the full width of the parent container
-            .padding(16.dp),               // Adds padding around the entire Row
-        horizontalArrangement = Arrangement.Center, // Centers content horizontally
-        verticalAlignment = Alignment.CenterVertically // Aligns content vertically in the center
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // Pie Chart on the left
+        // Chart Section
         PieChart(
             modifier = Modifier
-                .size(200.dp)              // Sets a fixed size for the pie chart
-                .padding(end = 16.dp),     // Adds space between the pie chart and the legend
-            pieChartData = pieChartData,   // The chart data
-            pieChartConfig = pieChartConfig // The configuration for the pie chart
+                .size(200.dp)
+                .padding(8.dp)
+                .clip(CircleShape)
+                .background(Color.White, CircleShape),
+            pieChartData = pieChartData,
+            pieChartConfig = pieChartConfig
         )
 
-        // Legend on the right side of the pie chart
+        Spacer(modifier = Modifier.width(16.dp)) // Space between chart and legend
+
+        // Legend Section
         Column(
-            verticalArrangement = Arrangement.Center,    // Centers legend items vertically
-            horizontalAlignment = Alignment.Start        // Aligns legend items to the start
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.Start
         ) {
-            // Loop through each slice to create legend items
             slices.forEach { slice ->
                 Row(
-                    modifier = Modifier.padding(vertical = 4.dp), // Adds spacing between legend items
-                    verticalAlignment = Alignment.CenterVertically // Aligns items vertically
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Box: Displays a small color dot for the slice
+                    // Colored dot for slice
                     Box(
                         modifier = Modifier
-                            .size(12.dp)                         // Sets the size of the color dot
-                            .background(slice.color, shape = CircleShape) // Uses slice color with a circular shape
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(slice.color)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))       // Adds horizontal space between dot and text
-
-                    // Text: Displays the label for the slice
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // Slice label
                     Text(
-                        text = slice.label,                      // Category name
-                        fontSize = 14.sp,                        // Sets text size to 14sp
-                        color = MaterialTheme.colorScheme.onSurface                     // Sets text color to black
+                        text = "${slice.label}: ${slice.value.toInt()}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

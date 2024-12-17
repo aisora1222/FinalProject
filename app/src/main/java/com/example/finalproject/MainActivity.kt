@@ -1840,110 +1840,94 @@ fun ManualDataInputScreen() {
                 horizontalAlignment = Alignment.Start
             ) {
                 // Category Selection
-                Text("Select a Category:")
-                SimpleDropdownMenu(
-                    items = categories,
-                    selectedItem = selectedCategory,
-                    onItemSelected = { selectedCategory = it }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
+                CardSection(title = "Category") {
+                    SimpleDropdownMenu(
+                        items = categories,
+                        selectedItem = selectedCategory,
+                        onItemSelected = { selectedCategory = it }
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Date Selection
-                Text("Select Year:",)
-                DropdownMenuField(years, selectedYear) { selectedYear = it }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text("Select Month:")
-                DropdownMenuField(months, selectedMonth) { selectedMonth = it }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text("Select Day:")
-                DropdownMenuField(daysInMonth, selectedDay) { selectedDay = it }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Item Input Fields
-                Text("Enter Items:")
-                items.forEachIndexed { index, (name, price) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { updatedName -> items[index] = updatedName to price },
-                            modifier = Modifier
-                                .weight(1f),
-                            label = { Text("Item Name", color = MaterialTheme.colorScheme.onSurface) },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        OutlinedTextField(
-                            value = price,
-                            onValueChange = { updatedPrice ->
-                                val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$")
-                                if (updatedPrice.matches(regex) || updatedPrice.isEmpty()) {
-                                    items[index] = name to updatedPrice
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            label = { Text("Price", color = MaterialTheme.colorScheme.onSurface) },
-                            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = { items.removeAt(index) }) {
-                            Text("Remove")
-                        }
+                CardSection(title = "Date Selection") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DropdownMenuField(years, selectedYear) { selectedYear = it }
+                        DropdownMenuField(months, selectedMonth) { selectedMonth = it }
+                        DropdownMenuField(daysInMonth, selectedDay) { selectedDay = it }
                     }
                 }
-                Button(
-                    onClick = { items.add("" to "") },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Add Item")
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Items Input
+                CardSection(title = "Items") {
+                    items.forEachIndexed { index, (name, price) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            OutlinedTextField(
+                                value = name,
+                                onValueChange = { updatedName -> items[index] = updatedName to price },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("Item Name") }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            OutlinedTextField(
+                                value = price,
+                                onValueChange = { updatedPrice ->
+                                    val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$")
+                                    if (updatedPrice.matches(regex) || updatedPrice.isEmpty()) {
+                                        items[index] = name to updatedPrice
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("Price") },
+                                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(onClick = { items.removeAt(index) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF9e1c1c)
+                                )) {
+                                Text("Remove", color = MaterialTheme.colorScheme.background)
+                            }
+                        }
+                    }
+                    Button(onClick = { items.add("" to "") }) {
+                        Text("Add Item")
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
+                Spacer(modifier = Modifier.height(10.dp))
                 // Tax Input
-                Text("Tax:")
-                OutlinedTextField(
-                    value = tax,
-                    onValueChange = { updatedTax ->
-                        val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$") // Regex: up to 4 digits and 2 decimal places
-                        if (updatedTax.matches(regex) || updatedTax.isEmpty()) {
-                            tax = updatedTax
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Tax", color = MaterialTheme.colorScheme.onSurface) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface
+                CardSection(title = "Tax") {
+                    OutlinedTextField(
+                        value = tax,
+                        onValueChange = { updatedTax ->
+                            val regex = Regex("^\\d{0,10}(\\.\\d{0,2})?\$")
+                            if (updatedTax.matches(regex) || updatedTax.isEmpty()) {
+                                tax = updatedTax
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Tax") },
+                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
                     )
-                )
+                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Total Display
-                Text("Total: $${"%.2f".format(total)}")
+                // Total
+                CardSection(title = "Total") {
+                    Text("Total: $${"%.2f".format(total)}", style = MaterialTheme.typography.titleMedium)
+                }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Submit Button with Validation
+                Spacer(modifier = Modifier.height(10.dp))
+                // Submit Button
                 Button(
                     onClick = {
                         val hasEmptyItem = items.any { it.first.isBlank() || it.second.isBlank() }
@@ -1992,13 +1976,27 @@ fun ManualDataInputScreen() {
                     }
                 }
 
-
             }
         }
     }
 }
 
-
+@Composable
+fun CardSection(title: String, content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            content()
+        }
+    }
+}
 
 /**
  * DropdownMenuField:
@@ -2527,26 +2525,31 @@ fun LogoutCard(onSignOut: () -> Unit) {
         shape = RoundedCornerShape(10.dp),                   // Adds rounded corners with a 10.dp radius
         elevation = CardDefaults.cardElevation(4.dp)         // Adds subtle elevation for a lifted effect
     ) {
-        // Column: Arranges the content vertically
-        Column(
-            modifier = Modifier.padding(20.dp),              // Adds padding around the content
-            verticalArrangement = Arrangement.spacedBy(10.dp) // Adds spacing between child elements
-        ) {
-            // Title Text: "Logout"
-            Text(
-                text = "Logout",                             // Displays the section title
-                style = MaterialTheme.typography.titleMedium, // Applies MaterialTheme for consistent styling
-                fontWeight = FontWeight.Bold                 // Makes the title bold
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                //.padding(20.dp)
+            ,                             // Adds padding around the content
+            verticalAlignment = Alignment.CenterVertically,   // Align items vertically at the center
+            horizontalArrangement = Arrangement.SpaceBetween  // Pushes the button to the end (right)
+        ){
+            Column(
+                modifier = Modifier.padding(20.dp),              // Adds padding around the content
+                verticalArrangement = Arrangement.spacedBy(10.dp) // Adds spacing between child elements
+            ) {
+                // Title Text: "Logout"
+                Text(
+                    text = "Logout",                             // Displays the section title
+                    style = MaterialTheme.typography.titleMedium, // Applies MaterialTheme for consistent styling
+                    fontWeight = FontWeight.Bold                 // Makes the title bold
+                )
 
-            // Description Text: Provides instructions to the user
-            Text(
-                text = "Sign out from your account.",        // Instructional text
-                color = Color.Gray                           // Sets the text color to gray
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))         // Adds spacing between description and button
-
+                // Description Text: Provides instructions to the user
+                Text(
+                    text = "Sign out from your account.",        // Instructional text
+                    color = Color.Gray                           // Sets the text color to gray
+                )
+            }
             // Sign Out Button
             Button(
                 onClick = {
@@ -2560,11 +2563,12 @@ fun LogoutCard(onSignOut: () -> Unit) {
                     containerColor = Color(0xFF9e1c1c)
                 ),
                 modifier = Modifier
-                    .align(Alignment.End)     // Aligns the button to the end (right) of the row
+                    .padding(10.dp)
             ) {
                 Text("Sign Out", color = MaterialTheme.colorScheme.background)                             // Button text
             }
         }
+
     }
 }
 
